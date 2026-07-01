@@ -1,55 +1,44 @@
-﻿import mongoose from 'mongoose';
+﻿import mongoose from "mongoose";
 import { ENV } from "./envConfig.js";
 
 let connectionPromise: Promise<typeof mongoose> | null = null;
 let listenersAttached = false;
 
 const attachConnectionListeners = () => {
-    if (listenersAttached) {
-        return;
-    }
+  if (listenersAttached) return;
+  listenersAttached = true;
 
-    listenersAttached = true;
+  mongoose.connection.on("connected", () => console.log("MongoDB connected"));
+  mongoose.connection.on("disconnected", () => console.warn("MongoDB disconnected"));
+  mongoose.connection.on("error", (error) => console.error("MongoDB error", error));
+};
 
-    mongoose.connection.on("connected", () => {
-        console.log("Database is connected");
-    });
+const getConnectionUri = () => {
+  if (ENV.MONGO_URI.startsWith("mongodb+srv://") || !ENV.MONGO_REPLICA_SET) {
+    return ENV.MONGO_URI;
+  }
 
-    mongoose.connection.on("disconnected", () => {
-        console.error("Database is disconnected");
-    });
+  const separator = ENV.MONGO_URI.includes("?") ? "&" : "?";
+  return `${ENV.MONGO_URI}${separator}replicaSet=${ENV.MONGO_REPLICA_SET}`;
+};
 
-    mongoose.connection.on("error", (err) => {
-        console.error("Database error:", err);
-    });
-}
+export const connectDB = async () => {
+  if (mongoose.connection.readyState === 1) return mongoose;
+  if (connectionPromise) return connectionPromise;
 
-export async function connectDB() {
-    if (mongoose.connection.readyState === 1) {
-        return mongoose;
-    }
+  attachConnectionListeners();
+  connectionPromise = mongoose.connect(getConnectionUri(), {
+    maxPoolSize: 20,
+    serverSelectionTimeoutMS: 10000,
+  }).catch((error) => {
+    connectionPromise = null;
+    throw error;
+  });
 
-    if (connectionPromise) {
-        return connectionPromise;
-    }
+  return connectionPromise;
+};
 
-    attachConnectionListeners();
-
-
-
-    const connectionUri = ENV.MONGO_URI.startsWith("mongodb+srv://") ? ENV.MONGO_URI : ENV.MONGO_REPLICA_SET ? `${ENV.MONGO_URI}${ENV.MONGO_URI.includes("?") ? "&" : "?"}replicaSet=${ENV.MONGO_REPLICA_SET}` : ENV.MONGO_URI;
-
-    connectionPromise = mongoose
-        .connect(connectionUri, {
-            maxPoolSize: 20,  
-            serverSelectionTimeoutMS: 10000,
-        })
-        .catch((err) => {
-            console.error("Failed to connect to MongoDB", err);
-            connectionPromise = null;
-            throw err;
-        });
-
-    return connectionPromise;
-}
-
+export const getMongoHealth = () => ({
+  readyState: mongoose.connection.readyState,
+  connected: mongoose.connection.readyState === 1,
+});

@@ -10,9 +10,7 @@ type RateLimitEntry = {
 const requestCounts = new Map<string, RateLimitEntry>();
 
 const sanitizeValue = (value: unknown): unknown => {
-  if (Array.isArray(value)) {
-    return value.map(sanitizeValue);
-  }
+  if (Array.isArray(value)) return value.map(sanitizeValue);
 
   if (value && typeof value === "object") {
     const sanitized: Record<string, unknown> = {};
@@ -29,8 +27,8 @@ const sanitizeValue = (value: unknown): unknown => {
 export const securityHeaders: RequestHandler = (_req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "DENY");
-  res.setHeader("Referrer-Policy", "no-referrer");
-  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader("Permissions-Policy", "camera=(self), microphone=(self), geolocation=()");
   res.setHeader("Cross-Origin-Resource-Policy", "same-site");
   if (ENV.NODE_ENV === "production") {
     res.setHeader("Strict-Transport-Security", "max-age=15552000; includeSubDomains");
@@ -39,11 +37,16 @@ export const securityHeaders: RequestHandler = (_req, res, next) => {
 };
 
 export const corsMiddleware: RequestHandler = (req, res, next) => {
+  const requestOrigin = req.headers.origin;
+  const allowedOrigin = requestOrigin && ENV.CORS_ORIGINS.includes(requestOrigin)
+    ? requestOrigin
+    : ENV.CORS_ORIGINS[0] ?? "*";
+
   res.setHeader("Vary", "Origin");
-  res.setHeader("Access-Control-Allow-Origin", ENV.CORS_ORIGIN);
+  res.setHeader("Access-Control-Allow-Origin", allowedOrigin);
   res.setHeader("Access-Control-Allow-Credentials", "true");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.setHeader("Access-Control-Allow-Methods", "GET,POST,PATCH,DELETE,OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,PATCH,PUT,DELETE,OPTIONS");
 
   if (req.method === "OPTIONS") {
     res.sendStatus(204);

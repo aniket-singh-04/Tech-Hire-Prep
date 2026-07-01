@@ -10,16 +10,11 @@ export const hashPassword = async (password: string): Promise<string> => {
   return `scrypt:${salt}:${derivedKey.toString("base64url")}`;
 };
 
-export const verifyPassword = async (
-  password: string,
-  passwordHash: string,
-): Promise<boolean> => {
+export const verifyPassword = async (password: string, passwordHash: string): Promise<boolean> => {
   const [algorithm, salt, storedKey] = passwordHash.split(":");
   if (algorithm !== "scrypt" || !salt || !storedKey) return false;
 
   const derivedKey = (await scrypt(password, salt, keyLength)) as Buffer;
   const storedBuffer = Buffer.from(storedKey, "base64url");
-
-  if (derivedKey.length !== storedBuffer.length) return false;
-  return timingSafeEqual(derivedKey, storedBuffer);
+  return derivedKey.length === storedBuffer.length && timingSafeEqual(derivedKey, storedBuffer);
 };

@@ -1,14 +1,18 @@
 ﻿import express, { type Application, type NextFunction, type Request, type Response } from "express";
 import { randomUUID } from "crypto";
+import { getMongoHealth } from "./config/database.js";
+import { getRedisHealth } from "./config/redis.js";
 import { getAppRuntime } from "./config/runtime.js";
 import { globalErrorHandler } from "./middlewares/error.middleware.js";
-import {
-  corsMiddleware,
-  rateLimit,
-  sanitizeMongoQueries,
-  securityHeaders,
-} from "./middlewares/security.middleware.js";
+import { corsMiddleware, rateLimit, sanitizeMongoQueries, securityHeaders } from "./middlewares/security.middleware.js";
 import authRoute from "./routes/auth.routes.js";
+import editorRoute from "./routes/editor.routes.js";
+import matchRoute from "./routes/match.routes.js";
+import onboardingRoute from "./routes/onboarding.routes.js";
+import sessionRoute from "./routes/session.routes.js";
+import userRoute from "./routes/user.routes.js";
+import walletRoute from "./routes/wallet.routes.js";
+import webrtcRoute from "./routes/webrtc.routes.js";
 import { AppError } from "./utils/appError.js";
 
 export const API_V1_PREFIX = "/api/v1";
@@ -36,19 +40,27 @@ export const createApp = (): Application => {
       version: "v1",
       runtime: getAppRuntime(),
       uptime: process.uptime(),
+      dependencies: {
+        mongo: getMongoHealth(),
+        redis: getRedisHealth(),
+      },
     });
   });
 
   app.use(`${API_V1_PREFIX}/auth`, authRoute);
+  app.use(`${API_V1_PREFIX}/users`, userRoute);
+  app.use(`${API_V1_PREFIX}/onboarding`, onboardingRoute);
+  app.use(`${API_V1_PREFIX}/matches`, matchRoute);
+  app.use(`${API_V1_PREFIX}/sessions`, sessionRoute);
+  app.use(`${API_V1_PREFIX}/wallet`, walletRoute);
+  app.use(`${API_V1_PREFIX}/editor`, editorRoute);
+  app.use(`${API_V1_PREFIX}/webrtc`, webrtcRoute);
 
-  app.use((_req, _res, next) => {
-    next(new AppError("Route not found.", 404));
-  });
-
+  app.use((_req, _res, next) => next(new AppError("Route not found.", 404)));
   app.use(globalErrorHandler);
+
   return app;
 };
 
 const app = createApp();
-
 export default app;
