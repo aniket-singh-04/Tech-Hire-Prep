@@ -1,5 +1,5 @@
 ﻿import type { NextFunction, Request, Response } from "express";
-import { AppError } from "../utils/appError.js";
+import { AppError } from "../utils/appError.ts";
 
 const normalizeDuplicateField = (field: string) => {
   const normalizedField = field.toLowerCase();

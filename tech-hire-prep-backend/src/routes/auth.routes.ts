@@ -1,16 +1,23 @@
 ﻿import { Router, type Router as ExpressRouter } from "express";
-import { validateBody } from "../common/validation.middleware.js";
-import { login, logout, refresh, register } from "../controllers/auth.controller.js";
-import { rateLimit } from "../middlewares/security.middleware.js";
-import { loginSchema, refreshSchema, registerSchema } from "../modules/auth/auth.schemas.js";
+import { authStartLimiter, validateBody } from "../common/validation.middleware.ts";
+import { registerService } from "../services/auth.service.ts";
+import { registerSchema } from "../validators/register.schema.ts";
 
 const authRoute: ExpressRouter = Router();
 
-authRoute.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 25, keyPrefix: "auth" }));
-authRoute.post("/register", validateBody(registerSchema), register);
-authRoute.post("/login", validateBody(loginSchema), login);
-authRoute.post("/refresh", validateBody(refreshSchema), refresh);
-authRoute.post("/logout", validateBody(refreshSchema), logout);
+authRoute.post("/register", authStartLimiter, validateBody(registerSchema), registerService);
+// authRoute.post("/register/verify-otp", authOtpLimiter, validateBody(verifyOtpSchema), verifyRegisterOtp);
+// authRoute.post("/login", authStartLimiter, validateBody(loginSchema), login);
+// authRoute.post("/login/verify-otp", authOtpLimiter, validateBody(verifyOtpSchema), verifyLoginOtp);
+// authRoute.post("/forgot-password", authStartLimiter, validateBody(forgotPasswordSchema), forgotPassword);
+// authRoute.post("/reset-password", passwordResetLimiter, validateBody(resetPasswordSchema), resetPassword);
+// authRoute.post("/refresh", refresh);
+// authRoute.post("/logout", logout);
+// authRoute.get("/me", protect, authMe);
+// authRoute.post("/verify-email/request", protect, requestEmailVerification);
+// authRoute.post("/verify-email/confirm", validateBody(confirmEmailVerificationSchema), confirmEmailVerification);
+// authRoute.post("/password-change/request-otp", protect, requestPasswordChangeOtp);
+// authRoute.post("/password-change/confirm", protect, validateBody(confirmPasswordChangeSchema), confirmPasswordChangeOtp);
 
 export default authRoute;
 

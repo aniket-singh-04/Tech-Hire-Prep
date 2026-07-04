@@ -1,5 +1,5 @@
-﻿import mongoose from "mongoose";
-import { ENV } from "./envConfig.js";
+import mongoose from "mongoose";
+import { ENV } from "./envConfig.ts";
 
 let connectionPromise: Promise<typeof mongoose> | null = null;
 let listenersAttached = false;

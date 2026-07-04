@@ -1,51 +1,129 @@
-﻿import mongoose, { Schema, type HydratedDocument, type Model } from "mongoose";
+﻿import mongoose, { HydratedDocument, Model, Schema, } from "mongoose";
+import { IUser, UserRole, UserStatus } from "../types/user.types.ts";
 
-export type UserRole = "student" | "admin";
-export type UserStatus = "active" | "suspended" | "deleted";
 
-export type RefreshTokenRecord = {
-  tokenHash: string;
-  expiresAt: Date;
-  createdAt: Date;
-  rotatedAt?: Date;
-  revokedAt?: Date;
-};
+export type UserDocument = HydratedDocument<IUser>;
 
-export type UserAttrs = {
-  email: string;
-  name: string;
-  passwordHash: string;
-  role: UserRole;
-  status: UserStatus;
-  isEmailVerified: boolean;
-  avatarUrl?: string;
-  refreshTokens: RefreshTokenRecord[];
-  lastLoginAt?: Date;
-  deletedAt?: Date;
-};
+const avatarSchema = new Schema(
+  {
+    s3Key: {
+      type: String,
+      trim: true,
+      default: "",
+    },
 
-export type UserDocument = HydratedDocument<UserAttrs>;
+    updatedAt: {
+      type: Date,
+      default: null,
+    },
+  },
+  {
+    _id: false,
+    strict: "throw",
+  },
+);
 
-const refreshTokenSchema = new Schema<RefreshTokenRecord>({
-  tokenHash: { type: String, required: true },
-  expiresAt: { type: Date, required: true },
-  createdAt: { type: Date, required: true, default: Date.now },
-  rotatedAt: { type: Date },
-  revokedAt: { type: Date },
-}, { _id: false });
+const userSchema = new Schema<IUser>(
+  {
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true,
+      lowercase: true,
+      index: true,
+    },
 
-const userSchema = new Schema<UserAttrs>({
-  email: { type: String, required: true, unique: true, lowercase: true, trim: true, index: true },
-  name: { type: String, required: true, trim: true, maxlength: 80 },
-  passwordHash: { type: String, required: true, select: false },
-  role: { type: String, enum: ["student", "admin"], default: "student", required: true },
-  status: { type: String, enum: ["active", "suspended", "deleted"], default: "active", required: true },
-  isEmailVerified: { type: Boolean, default: false, required: true },
-  avatarUrl: { type: String },
-  refreshTokens: { type: [refreshTokenSchema], default: [], select: false },
-  lastLoginAt: { type: Date },
-  deletedAt: { type: Date },
-}, { timestamps: true });
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 80,
+    },
 
-export const User: Model<UserAttrs> =
-  mongoose.models.User ?? mongoose.model<UserAttrs>("User", userSchema);
+    password: {
+      type: String,
+      required: true,
+      select: false,
+    },
+
+    role: {
+      type: String,
+      enum: Object.values(UserRole),
+      required: true,
+      default: UserRole.STUDENT,
+      index: true,
+    },
+
+    status: {
+      type: String,
+      enum: Object.values(UserStatus),
+      required: true,
+      default: UserStatus.ACTIVE,
+      index: true,
+    },
+
+    isEmailVerified: {
+      type: Boolean,
+      required: true,
+      default: false,
+    },
+
+    avatarUrl: {
+      type: avatarSchema,
+      default: () => ({
+        s3Key: "",
+        updatedAt: null,
+      }),
+    },
+
+    emailVerifiedAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+
+    lastLoginAt: {
+      type: Date,
+      default: null,
+    },
+
+    deletedAt: {
+      type: Date,
+      default: null,
+      index: true,
+      select: false,
+    },
+  },
+  {
+    timestamps: true,
+    versionKey: false,
+    strict: "throw",
+  },
+);
+
+/* ----------------------- Compound Indexes ----------------------- */
+
+userSchema.index({
+  status: 1,
+  deletedAt: 1,
+});
+
+userSchema.index({
+  role: 1,
+  status: 1,
+});
+
+userSchema.index({
+  emailVerifiedAt: 1,
+});
+
+
+/* --------------------------- Model ------------------------------ */
+
+export const UserModel: Model<IUser> =
+  mongoose.models.User ??
+  mongoose.model<IUser>(
+    "User",
+    userSchema,
+  );
