@@ -1,28 +1,25 @@
 ﻿import http from "http";
 import app from "./app.ts";
-import { connectDB } from "./config/database.ts";
 import { ENV } from "./config/envConfig.ts";
-// import { connectRedis } from "./config/redis.js";
-// import { initRealtime } from "./services/realtime.service.js";
+import { connectDB } from "./config/database.ts";
 
 const server = http.createServer(app);
 
 const bootstrap = async (): Promise<void> => {
   try {
-    await connectDB();
-    // await connectRedis().catch((error) => {
-    //   console.warn("Redis unavailable. Continuing without Redis-backed features.", error);
-    //   return null;
-    // });
-    // initRealtime(server);
-
-    server.listen(ENV.PORT, () => {
-      console.log(`Server running at http://localhost:${ENV.PORT}`);
-    });
+    await connectDB(); 
   } catch (error) {
-    console.error("Failed to start server", error);
-    process.exit(1);
+    if (ENV.NODE_ENV === "production") {
+      console.error("Failed to start server", error);
+      process.exit(1);
+    }
+
+    console.warn("Database unavailable. Continuing without DB-backed features.", error);
   }
+
+  server.listen(ENV.PORT, () => {
+    console.log(`Server running at http://localhost:${ENV.PORT}`);
+  });
 };
 
 bootstrap();

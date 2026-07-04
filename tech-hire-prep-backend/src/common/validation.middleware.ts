@@ -1,66 +1,68 @@
 ﻿import type { NextFunction, Request, Response } from "express";
 import rateLimit from "express-rate-limit";
-import type { ZodType } from "zod";
+import { z, type ZodType } from "zod";
 
 
-export const validateBody = (schema: ZodType<unknown>) =>
+export const validateBody = (schema: ZodType) =>
   (req: Request, res: Response, next: NextFunction) => {
-    const result = schema.safeParse({
-      body: req.body,
-      params: req.params,
-      query: req.query,
-    });
+    const result = schema.safeParse(req.body);
 
     if (!result.success) {
-      const fieldErrors = result.error.issues
-        .filter((issue) => issue.path.length > 0)
-        .map((issue) => ({
-          field: issue.path.join("."),
-          message: issue.message,
-        }));
-
-      const formErrors = result.error.issues
-        .filter((issue) => issue.path.length === 0)
-        .map((issue) => issue.message);
+      const fieldErrors = result.error.issues.map((issue) => ({
+        field: issue.path.join("."),
+        message: issue.message,
+      }));
 
       return res.status(400).json({
         success: false,
         requestId: req.requestId,
-        message:
-          formErrors[0] ??
-          fieldErrors[0]?.message ??
-          "Validation failed.",
+        message: fieldErrors[0]?.message ?? "Validation failed.",
         details: {
-          formErrors,
           fieldErrors,
         },
       });
     }
 
-    const parsedRequest = result.data as {
-      body?: unknown;
-      params?: unknown;
-      query?: unknown;
-    };
-
-    if (parsedRequest.body !== undefined) {
-      req.body = parsedRequest.body as typeof req.body;
-    }
-
-    if (parsedRequest.params !== undefined) {
-      req.params = parsedRequest.params as typeof req.params;
-    }
-
-    if (parsedRequest.query !== undefined) {
-      req.query = parsedRequest.query as typeof req.query;
-    }
+    req.body = result.data as typeof req.body;
 
     next();
   };
 
+export const validateParams =
+  (schema: ZodType) =>
+  (req: Request, res: Response, next: NextFunction) => {
+    const result = schema.safeParse(req.params);
 
+    if (!result.success) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid route parameters.",
+        details: result.error.flatten(),
+      });
+    }
 
+    req.params = result.data as typeof req.params;
 
+    next();
+  };
+
+export const validateQuery =
+  (schema: ZodType) =>
+  (req: Request, res: Response, next: NextFunction) => {
+    const result = schema.safeParse(req.query);
+
+    if (!result.success) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid query parameters.",
+        details: z.treeifyError(result.error),
+      });
+    }
+
+    req.query = result.data as typeof req.query;
+
+    next();
+  };
 
 
 

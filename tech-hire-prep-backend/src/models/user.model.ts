@@ -80,7 +80,6 @@ const userSchema = new Schema<IUser>(
     emailVerifiedAt: {
       type: Date,
       default: null,
-      index: true,
     },
 
     lastLoginAt: {

@@ -14,12 +14,13 @@ const attachConnectionListeners = () => {
 };
 
 const getConnectionUri = () => {
-  if (ENV.MONGO_URI.startsWith("mongodb+srv://") || !ENV.MONGO_REPLICA_SET) {
+  if (ENV.MONGO_URI.startsWith("mongodb+srv://")) {
     return ENV.MONGO_URI;
   }
 
-  const separator = ENV.MONGO_URI.includes("?") ? "&" : "?";
-  return `${ENV.MONGO_URI}${separator}replicaSet=${ENV.MONGO_REPLICA_SET}`;
+
+  return ENV.MONGO_URI;
+  
 };
 
 export const connectDB = async () => {

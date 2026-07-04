@@ -44,7 +44,7 @@ export const createApp = (): Application => {
 
   app.use(helmet());
   app.use(cors(corsOptions));
-  app.options("*", cors(corsOptions));
+  app.options(/(.*)/, cors(corsOptions));
   app.use(
     express.json({
       limit: "1mb",

@@ -5,7 +5,7 @@ import { created } from "../common/response.ts";
 
 
 
-export const register = asyncHandler(
+export const registerController = asyncHandler(
   async (req: Request, res: Response) => {
     const result = await registerService(req.body);
 

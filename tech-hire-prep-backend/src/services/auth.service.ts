@@ -31,6 +31,5 @@ export async function registerService(payload: RegisterRequest) {
     challengeId: challenge._id.toString(),
     maskedEmail: email,
     requiresOtp: true,
-    message: "OTP sent successfully.",
   };
 }

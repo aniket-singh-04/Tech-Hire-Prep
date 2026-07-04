@@ -39,10 +39,10 @@ export class UserRepository {
   }
 
   static async updateById(
-    id: string,
+    _id: string,
     update: Record<string, unknown>,
   ) {
-    return UserModel.findByIdAndUpdate(id, update, {
+    return UserModel.findByIdAndUpdate(_id, update, {
       new: true,
     });
   }

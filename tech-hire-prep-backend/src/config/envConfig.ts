@@ -159,9 +159,6 @@ export const ENV = Object.freeze({
         "mongodb://127.0.0.1:27017/tech-hire-prep",
     ),
 
-    MONGO_REPLICA_SET: getString("MONGO_REPLICA_SET", "myReplicaSet"),
-
-
     REDIS_URL: getString(
         "REDIS_URL",
         "redis://127.0.0.1:6379",
