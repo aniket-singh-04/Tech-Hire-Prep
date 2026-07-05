@@ -34,6 +34,21 @@ export class UserRepository {
     return (await UserModel.exists(query)) !== null;
   }
 
+  static async updatePassword(
+    userId: string,
+    passwordHash: string,
+  ) {
+    return UserModel.findByIdAndUpdate(
+      userId,
+      {
+        password: passwordHash,
+      },
+      {
+        new: true,
+      },
+    );
+  }
+
   static async create(data: Partial<IUser>) {
     return UserModel.create(data);
   }

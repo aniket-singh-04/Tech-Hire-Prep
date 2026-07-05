@@ -1,6 +1,6 @@
 import { Types } from "mongoose";
 import { EmailVerificationTokenModel } from "../models/emailVerificationToken.model.ts";
-import { TokenPurpose } from "../types/token.types.ts";
+import { VerificationPurpose } from "../types/emailverify.type.ts";
 
 export class VerificationRepo {
     // 1. CREATE verification record
@@ -8,11 +8,11 @@ export class VerificationRepo {
         userId?: Types.ObjectId;
         codeHash: string;
         expiresAt: Date;
-        purpose: TokenPurpose;
+        purpose: VerificationPurpose;
 
     }) {
         return EmailVerificationTokenModel.create({
-            userId : data.userId,
+            userId: data.userId,
             tokenHash: data.codeHash,
             expiresAt: data.expiresAt,
             purpose: data.purpose
@@ -46,19 +46,23 @@ export class VerificationRepo {
 
     // 5. MARK AS CONSUMED (verified)
     static async markConsumed(id: string) {
-        return EmailVerificationTokenModel.findByIdAndUpdate(
-            id,
+        return EmailVerificationTokenModel.updateOne(
             {
-                $set: { consumedAt: new Date() },
+                _id: id,
+                consumedAt: null,
             },
-            { new: true }
+            {
+                $set: {
+                    consumedAt: new Date(),
+                },
+            }
         );
     }
 
     // 6. DELETE ACTIVE VERIFICATIONS (resend flow)
     static async deleteActive(input: {
         userId: string;
-        purpose: TokenPurpose;
+        purpose: VerificationPurpose;
     }) {
         return EmailVerificationTokenModel.deleteMany({
             userId: new Types.ObjectId(input.userId),
@@ -76,6 +80,20 @@ export class VerificationRepo {
             },
             { new: true }
         );
+    }
+
+    static async findActiveByToken(data: {
+        userId: string;
+        purpose: VerificationPurpose;
+        codeHash: string;
+    }) {
+        return EmailVerificationTokenModel.findOne({
+            userId: new Types.ObjectId(data.userId),
+            purpose: data.purpose,
+            codeHash: data.codeHash,
+            consumedAt: null,
+            expiresAt: { $gt: new Date() },
+        });
     }
 
     // 8. SAVE (if using document method)

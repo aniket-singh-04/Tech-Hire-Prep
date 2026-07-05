@@ -15,7 +15,7 @@ declare global {
       /**
        * Active session id.
        */
-      sessionId: string;
+      sessionId?: string;
 
       /**
        * User role.

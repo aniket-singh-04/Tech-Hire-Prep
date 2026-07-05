@@ -1,6 +1,6 @@
 import mongoose, { HydratedDocument, Model, Schema, model, } from "mongoose";
 
-import { Purpose, UserRole, } from "../types/user.types.ts";
+import { OtpPurpose, UserRole, } from "../types/user.types.ts";
 import { IOtpChallenge } from "../types/otpchallange.type.ts";
 
 interface PendingUserSchema {
@@ -60,7 +60,7 @@ const otpChallengeSchema = new Schema<IOtpChallenge>(
 
     purpose: {
       type: String,
-      enum: Object.values(Purpose),
+      enum: Object.values(OtpPurpose),
       required: true,
       index: true,
     },

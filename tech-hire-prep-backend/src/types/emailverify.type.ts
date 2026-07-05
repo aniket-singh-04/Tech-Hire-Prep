@@ -1,5 +1,5 @@
 import { Types } from "mongoose";
-import { TokenPurpose } from "../types/token.types.ts";
+
 
 export interface IEmailVerificationToken {
   userId: Types.ObjectId;
@@ -7,7 +7,12 @@ export interface IEmailVerificationToken {
   expiresAt: Date;
   consumedAt?: Date | null;
 
-  purpose: TokenPurpose;
+  purpose: VerificationPurpose;
 
   resendCount: number;
+}
+
+export enum VerificationPurpose {
+  EMAIL_VERIFICATION = "EMAIL_VERIFICATION",
+  FORGOT_PASSWORD = "FORGOT_PASSWORD",
 }

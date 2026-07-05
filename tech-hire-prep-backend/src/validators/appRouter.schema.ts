@@ -43,7 +43,26 @@ export const loginSchema = z.object({
     .regex(PASSWORD_REGEX, "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character.",),
 }).strict();
 
+export const forgotPasswordSchema = z.object({
+  email: z.email("Invalid email address"),
+}).strict();
+
+export const confirmPasswordChangeSchema = z.object({
+  challengeId: z.string().min(1, "challengeId is required"),
+  otp: z
+    .string()
+    .trim()
+    .regex(/^[0-9]{4,6}$/, "OTP must be 4 to 6 digits"),
+  newPassword: z.string().min(6, "Password must be at least 6 characters"),
+}).strict();
+
+export const confirmEmailVerificationSchema = z.object({
+  userId: z.string().min(1, "userId is required"),
+  token: z.string().min(1, "token is required"),
+}).strict();
 
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type VerifyOtp = z.infer<typeof verifyOtpSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
+export type PasswordChangeInput = z.infer<typeof confirmPasswordChangeSchema>;
+export type EmailVerificationInput = z.infer<typeof confirmEmailVerificationSchema>;

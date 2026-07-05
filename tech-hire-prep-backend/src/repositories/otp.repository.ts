@@ -1,11 +1,11 @@
 import { OtpChallengeModel } from "../models/otpChallenge.model.ts";
-import { Purpose, UserRole } from "../types/user.types.ts";
+import { OtpPurpose, UserRole } from "../types/user.types.ts";
 import { Types } from "mongoose";
 
 export class OtpRepository {
   static async create(data: {
     userId?: Types.ObjectId;
-    purpose: Purpose;
+    purpose: OtpPurpose;
     email: string;
     codeHash: string;
     expiresAt: Date;
@@ -27,7 +27,7 @@ export class OtpRepository {
 
   static async deleteActiveOtp(
     email: string,
-    purpose: Purpose,
+    purpose: OtpPurpose,
   ) {
     return OtpChallengeModel.deleteMany({
       email,

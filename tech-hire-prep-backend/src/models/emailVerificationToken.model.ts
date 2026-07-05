@@ -1,6 +1,5 @@
 import mongoose, { HydratedDocument, Model, Schema, model, } from "mongoose";
-import { TokenPurpose } from "../types/token.types.ts";
-import { IEmailVerificationToken } from "../types/emailverify.type.ts";
+import { IEmailVerificationToken, VerificationPurpose } from "../types/emailverify.type.ts";
 
 export type EmailVerificationTokenDocument = HydratedDocument<IEmailVerificationToken>;
 
@@ -35,7 +34,7 @@ const emailVerificationTokenSchema = new Schema<IEmailVerificationToken>(
 
     purpose: {
       type: String,
-      enum: Object.values(TokenPurpose),
+      enum: Object.values(VerificationPurpose),
       required: true,
       index: true,
     },

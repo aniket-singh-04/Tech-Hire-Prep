@@ -1,5 +1,5 @@
 import { ENV } from "../config/envConfig.ts";
-import { Purpose } from "../types/user.types.ts";
+import { OtpPurpose } from "../types/user.types.ts";
 import { buildOtpEmailTemplate, getEmailAppUrl, getEmailBrandName } from "../utils/emailTemplate.ts"
 import nodemailer from "nodemailer";
 
@@ -70,28 +70,27 @@ const sendOtpMail = async (input: {
 export async function sendOtpChallengeMail(params: {
   email: string;
   otp: string;
-  purpose: Purpose;
+  purpose: OtpPurpose;
 }) {
   let subject: string;
   let introText: string;
 
   switch (params.purpose) {
-    case Purpose.REGISTER:
+    case OtpPurpose.REGISTER:
       subject = "Verify your registration";
       introText = "Use this OTP to finish creating your account.";
       break;
 
-    case Purpose.LOGIN:
+    case OtpPurpose.LOGIN:
       subject = "Verify your login";
       introText = "Use this OTP to complete your sign-in.";
       break;
 
-    case Purpose.FORGOT_PASSWORD:
-    case Purpose.RESET_PASSWORD:
-      subject = "Reset your password";
-      introText = "Use this OTP to reset your password.";
+    case OtpPurpose.RESET_PASSWORD:
+      subject = "Verify your rest password";
+      introText = "Use this OTP to change your password.";
       break;
-
+      
     default:
       throw new Error("Unsupported OTP purpose.");
   }

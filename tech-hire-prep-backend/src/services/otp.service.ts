@@ -1,6 +1,6 @@
 import { randomInt } from "crypto";
 import { ENV } from "../config/envConfig.ts";
-import { Purpose, UserRole } from "../types/user.types.ts";
+import { OtpPurpose } from "../types/user.types.ts";
 import { sha256 } from "../utils/security.ts";
 import { OtpRepository } from "../repositories/otp.repository.ts";
 import { AppError } from "../utils/appError.ts";
@@ -58,7 +58,7 @@ export const createOtpChallenge = async (
 export const consumeOtpChallenge = async (input: {
   challengeId: string;
   otp: string;
-  purpose: Purpose;
+  purpose: OtpPurpose;
 }) => {
   const challenge = await OtpRepository.findById(input.challengeId);
 
@@ -88,4 +88,5 @@ export const consumeOtpChallenge = async (input: {
 
   return challenge;
 };
+
 

@@ -1,4 +1,4 @@
-import mongoose, { Schema, InferSchemaType, Model, HydratedDocument, } from "mongoose";
+import mongoose, { Schema, Model, HydratedDocument, } from "mongoose";
 import { ISession, SessionRevokeReason } from "../types/session.types.ts";
 
 export type SessionDocument = HydratedDocument<ISession>;

@@ -17,10 +17,9 @@ export enum UserStatus {
   DELETED = "DELETED",
 }
 
-export enum Purpose {
+export enum OtpPurpose {
   REGISTER = "REGISTER",
   LOGIN = "LOGIN",
-  FORGOT_PASSWORD = "FORGOT_PASSWORD",
   RESET_PASSWORD = "RESET_PASSWORD",
 }
 

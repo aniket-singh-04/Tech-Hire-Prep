@@ -1,9 +1,9 @@
 import { Types } from "mongoose";
-import { Purpose, UserRole } from "./user.types.ts";
+import { OtpPurpose, UserRole } from "./user.types.ts";
 
 export interface IOtpChallenge {
   userId?: Types.ObjectId | null;
-  purpose: Purpose;
+  purpose: OtpPurpose;
   email: string;
   codeHash: string;
   expiresAt: Date;
@@ -28,7 +28,7 @@ export interface IOtpChallenge {
 
 
 export interface CreateOtpChallengeInput {
-  purpose: Purpose;
+  purpose: OtpPurpose;
   email: string;
   userId?: Types.ObjectId;
 
