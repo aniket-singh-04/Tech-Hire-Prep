@@ -6,3 +6,10 @@ export const normalizeEmail = (email: string): string => {
 
 export const sha256 = (value: string) =>
   crypto.createHash("sha256").update(value).digest("hex");
+
+
+export const generateOpaqueToken = (
+  bytes = 48,
+): string => {
+  return crypto.randomBytes(bytes).toString("hex");
+};

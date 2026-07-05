@@ -1,4 +1,4 @@
-import jwt, { JsonWebTokenError, NotBeforeError, TokenExpiredError, } from "jsonwebtoken";
+import jwt from "jsonwebtoken";
 import { AppError } from "../utils/appError.ts";
 import { ENV } from "../config/envConfig.ts";
 import { JwtAccessPayload, JwtRefreshPayload } from "../types/auth.types.ts";
@@ -11,13 +11,13 @@ const normalizeJwtError = (
     expiredMessage: string,
     invalidMessage: string,
 ): never => {
-    if (error instanceof TokenExpiredError) {
+    if (error instanceof jwt.TokenExpiredError) {
         throw new AppError(expiredMessage, 401);
     }
 
     if (
-        error instanceof JsonWebTokenError ||
-        error instanceof NotBeforeError
+        error instanceof jwt.JsonWebTokenError ||
+        error instanceof jwt.NotBeforeError
     ) {
         throw new AppError(invalidMessage, 401);
     }
@@ -40,13 +40,13 @@ export const verifyAccessToken = (token: string,): JwtAccessPayload => {
             issuer: ENV.JWT_ACCESS_ISSUER,
         }) as JwtAccessPayload;
     } catch (error) {
-        if (error instanceof TokenExpiredError) {
+        if (error instanceof jwt.TokenExpiredError) {
             throw new AppError("Access token has expired.", 401);
         }
 
         if (
-            error instanceof JsonWebTokenError ||
-            error instanceof NotBeforeError
+            error instanceof jwt.JsonWebTokenError ||
+            error instanceof jwt.NotBeforeError
         ) {
             throw new AppError("Invalid access token.", 401);
         }
@@ -68,13 +68,13 @@ export const verifyRefreshToken = (token: string,): JwtRefreshPayload => {
             issuer: REFRESH_ISSUER,
         }) as JwtRefreshPayload;
     } catch (error) {
-        if (error instanceof TokenExpiredError) {
+        if (error instanceof jwt.TokenExpiredError) {
             throw new AppError("Session has expired.", 401);
         }
 
         if (
-            error instanceof JsonWebTokenError ||
-            error instanceof NotBeforeError
+            error instanceof jwt.JsonWebTokenError ||
+            error instanceof jwt.NotBeforeError
         ) {
             throw new AppError("Invalid refresh token.", 401);
         }

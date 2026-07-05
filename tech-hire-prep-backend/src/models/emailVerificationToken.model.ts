@@ -1,98 +1,59 @@
-import mongoose, { Schema, model, } from "mongoose";
+import mongoose, { HydratedDocument, Model, Schema, model, } from "mongoose";
 import { TokenPurpose } from "../types/token.types.ts";
+import { IEmailVerificationToken } from "../types/emailverify.type.ts";
 
-const pendingChangesSchema = new Schema(
+export type EmailVerificationTokenDocument = HydratedDocument<IEmailVerificationToken>;
+
+const emailVerificationTokenSchema = new Schema<IEmailVerificationToken>(
   {
-    name: {
-      type: String,
-      trim: true,
+    userId: {
+      type: Schema.Types.ObjectId,
+      required: true,
+      ref: "User",
+      index: true,
     },
 
-    email: {
+    tokenHash: {
       type: String,
-      trim: true,
-      lowercase: true,
+      required: true,
+      minlength: 64,
+      maxlength: 64,
     },
 
-    phone: {
-      type: String,
-      trim: true,
+    expiresAt: {
+      type: Date,
+      required: true,
+      expires: 0,
+      index: true,
     },
 
-    passwordHash: {
-      type: String,
+    consumedAt: {
+      type: Date,
+      default: null,
+      index: true,
     },
+
+    purpose: {
+      type: String,
+      enum: Object.values(TokenPurpose),
+      required: true,
+      index: true,
+    },
+
+    resendCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+
   },
   {
-    _id: false,
+    timestamps: true,
+    versionKey: false,
     strict: "throw",
   },
 );
-
-const emailVerificationTokenSchema =
-  new Schema(
-    {
-      userId: {
-        type: Schema.Types.ObjectId,
-        required: true,
-        ref: "User",
-        index: true,
-      },
-
-      tokenHash: {
-        type: String,
-        required: true,
-        minlength: 64,
-        maxlength: 64,
-      },
-
-      expiresAt: {
-        type: Date,
-        required: true,
-        expires: 0,
-        index: true,
-      },
-
-      consumedAt: {
-        type: Date,
-        default: null,
-        index: true,
-      },
-
-      purpose: {
-        type: String,
-        enum: Object.values(TokenPurpose),
-        required: true,
-        index: true,
-      },
-
-      pendingChanges: {
-        type: pendingChangesSchema,
-        default: null,
-      },
-
-      resendCount: {
-        type: Number,
-        default: 0,
-        min: 0,
-      },
-
-      ipHash: {
-        type: String,
-        default: null,
-      },
-
-      userAgentHash: {
-        type: String,
-        default: null,
-      },
-    },
-    {
-      timestamps: true,
-      versionKey: false,
-      strict: "throw",
-    },
-  );
 
 /* ---------------- Indexes ---------------- */
 
@@ -107,9 +68,9 @@ emailVerificationTokenSchema.index({
   consumedAt: 1,
 });
 
-export const EmailVerificationTokenModel =
+export const EmailVerificationTokenModel: Model<IEmailVerificationToken> =
   mongoose.models.EmailVerificationToken ??
-  model(
+  model<IEmailVerificationToken>(
     "EmailVerificationToken",
-    emailVerificationTokenSchema,
+    emailVerificationTokenSchema
   );

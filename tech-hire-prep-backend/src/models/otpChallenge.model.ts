@@ -1,16 +1,27 @@
-import mongoose, { Schema, model, } from "mongoose";
+import mongoose, { HydratedDocument, Model, Schema, model, } from "mongoose";
 
 import { Purpose, UserRole, } from "../types/user.types.ts";
+import { IOtpChallenge } from "../types/otpchallange.type.ts";
 
-const pendingUserSchema = new Schema(
+interface PendingUserSchema {
+  name: string;
+  email: string;
+  phone?: string;
+  passwordHash: string;
+  role?: UserRole;
+}
+
+const pendingUserSchema = new Schema<PendingUserSchema>(
   {
     name: {
       type: String,
+      required: true,
       trim: true,
     },
 
     email: {
       type: String,
+      required: true,
       trim: true,
       lowercase: true,
     },
@@ -22,17 +33,13 @@ const pendingUserSchema = new Schema(
 
     passwordHash: {
       type: String,
+      required: true,
     },
 
     role: {
       type: String,
       enum: Object.values(UserRole),
-    },
-
-    gstNumber: {
-      type: String,
-      trim: true,
-    },
+    }
   },
   {
     _id: false,
@@ -40,7 +47,9 @@ const pendingUserSchema = new Schema(
   },
 );
 
-const otpChallengeSchema = new Schema(
+
+export type OtpChallengeDocument = HydratedDocument<IOtpChallenge>;
+const otpChallengeSchema = new Schema<IOtpChallenge>(
   {
     userId: {
       type: Schema.Types.ObjectId,
@@ -147,9 +156,9 @@ otpChallengeSchema.index({
   purpose: 1,
 });
 
-export const OtpChallengeModel =
-  mongoose.models.OtpChallenge ??
-  model(
+export const OtpChallengeModel: Model<IOtpChallenge> =
+  (mongoose.models.OtpChallenge as Model<IOtpChallenge>) ??
+  model<IOtpChallenge>(
     "OtpChallenge",
     otpChallengeSchema,
   );

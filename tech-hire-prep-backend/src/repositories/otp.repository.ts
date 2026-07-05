@@ -36,9 +36,9 @@ export class OtpRepository {
     });
   }
 
-  // static async findById(id: string) {
-  //   return OtpChallengeModel.findById(id);
-  // }
+  static async findById(id: string) {
+    return OtpChallengeModel.findById(id);
+  }
 
   // static async findActiveOtp(
   //   email: string,

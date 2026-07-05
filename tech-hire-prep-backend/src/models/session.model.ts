@@ -1,7 +1,8 @@
-import mongoose, { Schema, model, InferSchemaType, } from "mongoose";
-import { SessionRevokeReason } from "../types/session.types.ts";
+import mongoose, { Schema, InferSchemaType, Model, HydratedDocument, } from "mongoose";
+import { ISession, SessionRevokeReason } from "../types/session.types.ts";
 
-const sessionSchema = new Schema(
+export type SessionDocument = HydratedDocument<ISession>;
+const sessionSchema = new Schema<ISession>(
   {
     userId: {
       type: Schema.Types.ObjectId,
@@ -88,11 +89,8 @@ sessionSchema.index({
 
 /* ----------------------- Types ----------------------- */
 
-export type SessionDocument =
-  InferSchemaType<typeof sessionSchema>;
-
-const Session =
+const SessionModel : Model<ISession> =
   mongoose.models.Session ??
-  model("Session", sessionSchema);
+  mongoose.model<ISession>("Session", sessionSchema);
 
-export default Session;
+export default SessionModel;

@@ -1,12 +1,12 @@
 ﻿import { Router, type Router as ExpressRouter } from "express";
-import { authStartLimiter, validateBody } from "../common/validation.middleware.ts";
-import { registerSchema } from "../validators/register.schema.ts";
-import { registerController } from "../controllers/auth.controller.ts";
+import { authOtpLimiter, authStartLimiter, validateBody } from "../common/validation.middleware.ts";
+import { registerSchema, verifyOtpSchema } from "../validators/appRouter.schema.ts";
+import { registerController, verifyRegisterOtpController } from "../controllers/auth.controller.ts";
 
 const authRoute: ExpressRouter = Router();
 
 authRoute.post("/register", authStartLimiter, validateBody(registerSchema), registerController);
-// authRoute.post("/register/verify-otp", authOtpLimiter, validateBody(verifyOtpSchema), verifyRegisterOtp);
+authRoute.post("/register/verify-otp", authOtpLimiter, validateBody(verifyOtpSchema), verifyRegisterOtpController);
 // authRoute.post("/login", authStartLimiter, validateBody(loginSchema), login);
 // authRoute.post("/login/verify-otp", authOtpLimiter, validateBody(verifyOtpSchema), verifyLoginOtp);
 // authRoute.post("/forgot-password", authStartLimiter, validateBody(forgotPasswordSchema), forgotPassword);

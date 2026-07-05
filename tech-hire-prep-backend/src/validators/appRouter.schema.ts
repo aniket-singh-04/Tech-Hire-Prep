@@ -25,4 +25,14 @@ export const registerSchema = z.object({
     .optional(),
 }).strict();
 
+export const verifyOtpSchema = z.object({
+  challengeId: z.string().min(1, "challengeId is required"),
+  otp: z
+    .string()
+    .trim()
+    .regex(/^[0-9]{4,6}$/, "OTP must be 4 to 6 digits"),
+
+}).strict();
+
 export type RegisterInput = z.infer<typeof registerSchema>;
+export type VerifyRegisterOtp = z.infer<typeof verifyOtpSchema>;
