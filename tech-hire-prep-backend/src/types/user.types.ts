@@ -20,7 +20,8 @@ export enum UserStatus {
 export enum Purpose {
   REGISTER = "REGISTER",
   LOGIN = "LOGIN",
-  PASSWORD_CHANGE = "PASSWORD_CHANGE",
+  FORGOT_PASSWORD = "FORGOT_PASSWORD",
+  RESET_PASSWORD = "RESET_PASSWORD",
 }
 
 /* -------------------------------------------------------------------------- */

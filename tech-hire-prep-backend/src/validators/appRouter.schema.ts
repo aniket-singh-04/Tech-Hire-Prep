@@ -34,5 +34,16 @@ export const verifyOtpSchema = z.object({
 
 }).strict();
 
+export const loginSchema = z.object({
+  email: z.email("Invalid email address"),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters.")
+    .max(64, "Password cannot exceed 64 characters.")
+    .regex(PASSWORD_REGEX, "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character.",),
+}).strict();
+
+
 export type RegisterInput = z.infer<typeof registerSchema>;
-export type VerifyRegisterOtp = z.infer<typeof verifyOtpSchema>;
+export type VerifyOtp = z.infer<typeof verifyOtpSchema>;
+export type LoginInput = z.infer<typeof loginSchema>;

@@ -25,3 +25,19 @@ export interface IOtpChallenge {
   userAgentHash?: string | null;
   metadata: Map<string, unknown>;
 }
+
+
+export interface CreateOtpChallengeInput {
+  purpose: Purpose;
+  email: string;
+  userId?: Types.ObjectId;
+
+  pendingUser?: {
+    name: string;
+    email: string;
+    passwordHash: string;
+    role: UserRole;
+  };
+
+  metadata?: Record<string, unknown>;
+}

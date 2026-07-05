@@ -10,6 +10,7 @@ export class SessionRepository {
     userAgentHash?: string;
     ipHash?: string;
     expiresAt: Date;
+    revoked: Boolean;
   }) {
     return SessionModel.create(data);
   }
@@ -27,6 +28,8 @@ export class SessionRepository {
       userId,
       revoked: false,
       expiresAt: { $gt: new Date() },
+    }).sort({
+      createdAt: 1,
     });
   }
 

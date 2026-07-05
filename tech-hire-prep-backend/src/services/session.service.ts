@@ -29,6 +29,7 @@ export const createSession = async (req: Request, user: { _id: Types.ObjectId; r
     expiresAt,
     userAgentHash: req.headers["user-agent"] ? sha256(String(req.headers["user-agent"])) : undefined,
     ipHash: req.ip ? sha256(req.ip) : undefined,
+    revoked: false,
   });
 
   const refreshToken = signRefreshToken({

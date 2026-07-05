@@ -50,7 +50,10 @@ const sessionSchema = new Schema<ISession>(
       type: Date,
       default: null,
     },
-
+    revoked: {
+      type: Boolean,
+      default: false,
+    },
     revokedAt: {
       type: Date,
       default: null,
@@ -89,7 +92,7 @@ sessionSchema.index({
 
 /* ----------------------- Types ----------------------- */
 
-const SessionModel : Model<ISession> =
+const SessionModel: Model<ISession> =
   mongoose.models.Session ??
   mongoose.model<ISession>("Session", sessionSchema);
 

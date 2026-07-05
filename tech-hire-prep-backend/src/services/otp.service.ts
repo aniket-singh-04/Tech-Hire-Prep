@@ -4,6 +4,8 @@ import { Purpose, UserRole } from "../types/user.types.ts";
 import { sha256 } from "../utils/security.ts";
 import { OtpRepository } from "../repositories/otp.repository.ts";
 import { AppError } from "../utils/appError.ts";
+import { Types } from "mongoose";
+import { CreateOtpChallengeInput } from "../types/otpchallange.type.ts";
 
 export function generateOtp() {
   return randomInt(0, 1000000)
@@ -17,25 +19,33 @@ export function getOtpExpiryDate() {
   );
 }
 
-export async function createRegisterOtp(data: { name: string; email: string; passwordHash: string; role: UserRole; }) {
+
+export const createOtpChallenge = async (
+  input: CreateOtpChallengeInput,
+) => {
   const otp = generateOtp();
-  console.log(otp)
+  console.log(otp);
+
   await OtpRepository.deleteActiveOtp(
-    data.email,
-    Purpose.REGISTER,
+    input.email,
+    input.purpose,
   );
 
+ 
   const challenge = await OtpRepository.create({
-    purpose: Purpose.REGISTER,
-    email: data.email,
+    ...(input.userId && { userId: input.userId }),
+
+    purpose: input.purpose,
+    email: input.email,
+
     codeHash: sha256(otp),
     expiresAt: getOtpExpiryDate(),
-    pendingUser: {
-      name: data.name,
-      email: data.email,
-      passwordHash: data.passwordHash,
-      role: data.role,
-    },
+
+    ...(input.pendingUser && {
+      pendingUser: input.pendingUser,
+    }),
+
+    metadata: input.metadata ?? {},
   });
 
   return {
@@ -44,10 +54,11 @@ export async function createRegisterOtp(data: { name: string; email: string; pas
   };
 }
 
+
 export const consumeOtpChallenge = async (input: {
   challengeId: string;
   otp: string;
-  purpose: "REGISTER" | "LOGIN" | "PASSWORD_CHANGE";
+  purpose: Purpose;
 }) => {
   const challenge = await OtpRepository.findById(input.challengeId);
 

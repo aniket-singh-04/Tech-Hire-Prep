@@ -26,6 +26,8 @@ export interface ISession  {
   expiresAt: Date;
 
   rotatedAt: Date | null;
+  
+  revoked: Boolean;
 
   revokedAt: Date | null;
 

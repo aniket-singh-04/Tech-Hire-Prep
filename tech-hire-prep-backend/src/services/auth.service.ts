@@ -1,18 +1,19 @@
 import { UserRepository } from "../repositories/user.repository.ts";
-import { hashPassword } from "./password.service.ts";
-import { consumeOtpChallenge, createRegisterOtp } from "./otp.service.ts";
+import { hashPassword, verifyPassword } from "./password.service.ts";
+import { consumeOtpChallenge, createOtpChallenge, } from "./otp.service.ts";
 import type { RegisterRequest } from "../types/auth.types.ts";
-import { UserRole, UserStatus } from "../types/user.types.ts";
-import { sendRegisterOtpMail } from "./mail.service.ts";
+import { Purpose, UserRole, UserStatus } from "../types/user.types.ts";
+import { sendOtpChallengeMail } from "./mail.service.ts";
 import { AppError } from "../utils/appError.ts";
-import { normalizeEmail } from "../utils/security.ts";
+import { maskEmail, normalizeEmail } from "../utils/security.ts";
 import { assertUniqueUserEmail } from "../validators/user.validation.ts";
 import { requestEmailVerificationService } from "./emailVerification.service.ts";
 import { Request } from "express";
 import { createSession } from "./session.service.ts";
 import { serializeUser } from "./serializer.service.ts";
+import { SessionRepository } from "../repositories/session.repository.ts";
 
-export async function registerService(payload: RegisterRequest) {
+export const registerService = async (payload: RegisterRequest) => {
   const email = normalizeEmail(payload.email);
 
   const exists = await UserRepository.existsByEmail(email);
@@ -23,18 +24,27 @@ export async function registerService(payload: RegisterRequest) {
 
   const passwordHash = await hashPassword(payload.password);
 
-  const { otp, challenge } = await createRegisterOtp({
-    name: payload.name.trim(),
+  const { otp, challenge } = await createOtpChallenge({
+    purpose: Purpose.REGISTER,
     email,
-    passwordHash,
-    role: payload.role ?? UserRole.STUDENT,
+    pendingUser: {
+      name: payload.name.trim(),
+      email,
+      passwordHash,
+      role: payload.role ?? UserRole.STUDENT,
+    },
   });
 
-  await sendRegisterOtpMail(email, otp);
+  await sendOtpChallengeMail({
+    email,
+    otp,
+    purpose: Purpose.REGISTER,
+  });
+
 
   return {
     challengeId: challenge._id.toString(),
-    maskedEmail: email,
+    maskedEmail: maskEmail(email),
     requiresOtp: true,
   };
 }
@@ -44,7 +54,7 @@ export const verifyRegistrationOtpService = async (req: Request, challengeId: st
   const challenge = await consumeOtpChallenge({
     challengeId,
     otp,
-    purpose: "REGISTER",
+    purpose: Purpose.REGISTER,
   });
 
   const pendingUser = challenge.get("pendingUser") as { name?: string; email?: string; passwordHash?: string; role?: UserRole; } | null;
@@ -72,3 +82,100 @@ export const verifyRegistrationOtpService = async (req: Request, challengeId: st
     user: await serializeUser(user),
   };
 };
+
+
+export const loginService = async (email: string, password: string,) => {
+  if (email?.trim()) {
+    email = normalizeEmail(email);
+  }
+
+  if (!email) {
+    throw new AppError("Email is required", 400);
+  }
+
+  const user = await UserRepository.findByEmailWithPassword(email);
+
+  if (!user) {
+    throw new AppError("Invalid credentials", 401);
+  }
+
+  if (!user.status || user.deletedAt) {
+    throw new AppError("Account is disabled", 403);
+  }
+
+  const isMatch = await verifyPassword(password, user.password);
+
+  if (!isMatch) {
+    throw new AppError("Invalid credentials", 401);
+  }
+
+  // Get all active sessions sorted from oldest -> newest
+  const activeSessions = await SessionRepository.findActiveByUser(
+    user._id.toString(),
+  );
+
+  if (activeSessions.length >= 5) {
+    const oldestSession = activeSessions[0];
+
+    if (oldestSession) {
+      await SessionRepository.revoke(oldestSession._id.toString());
+    }
+  }
+
+  const { challenge, otp } = await createOtpChallenge({
+    userId: user._id,
+    purpose: Purpose.LOGIN,
+    email: user.email,
+    metadata: {
+      via: "email",
+    },
+  });
+
+  await sendOtpChallengeMail({
+    email,
+    otp,
+    purpose: Purpose.LOGIN,
+  });
+
+  return {
+    challengeId: challenge._id.toString(),
+    maskedEmail: maskEmail(user.email),
+    requiresOtp: true,
+  };
+};
+
+export const verifyLoginOtpService = async (
+  req: Request,
+  challengeId: string,
+  otp: string,
+) => {
+  const challenge = await consumeOtpChallenge({
+    challengeId,
+    otp,
+    purpose: Purpose.LOGIN,
+  });
+
+  const userId = challenge.userId?.toString();
+  if (!userId) {
+    throw new AppError("Login challenge is invalid", 400);
+  }
+
+  const user = await UserRepository.findById(userId);
+
+  if ( !user || !user.status || user.deletedAt ) {
+    throw new AppError("Account is disabled", 403);
+  }
+
+  const sessionPair = await createSession(req, user);
+
+  return {
+    ...sessionPair,
+    user: await serializeUser(user),
+  };
+};
+
+
+
+
+
+
