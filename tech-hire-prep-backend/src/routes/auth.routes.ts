@@ -15,7 +15,7 @@ authRoute.post("/reset-password", passwordResetLimiter, resetPasswordWithLinkCon
 authRoute.post("/password-change/request-otp", protect, requestPasswordChangeOtpController);
 authRoute.post("/password-change/confirm", protect, validateBody(confirmPasswordChangeSchema), confirmPasswordChangeOtpController);
 authRoute.post("/verify-email/request", protect, requestEmailVerificationController);
-authRoute.post("/verify-email/confirm", validateBody(confirmEmailVerificationSchema), confirmEmailVerificationController);
+authRoute.post("/verify-email/confirm", protect, validateBody(confirmEmailVerificationSchema), confirmEmailVerificationController);
 authRoute.get("/me", protect, authMeController);
 authRoute.post("/refresh", refreshController);
 authRoute.post("/logout", logoutController);

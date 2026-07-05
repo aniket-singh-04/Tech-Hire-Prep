@@ -119,7 +119,7 @@ export const confirmPasswordChangeOtpController = asyncHandler(async (req: Reque
 );
 
 export const requestEmailVerificationController = asyncHandler(async (req: Request, res: Response) => {
-  if (!req.user?.id || !req.user?.id) {
+  if (!req.user?.id) {
     throw new AppError("Unauthorized", 401);
   }
 
@@ -133,8 +133,12 @@ export const requestEmailVerificationController = asyncHandler(async (req: Reque
 );
 
 export const confirmEmailVerificationController = asyncHandler(async (req: Request, res: Response) => {
-  const { userId, token } = req.body;
-  const result = await confirmEmailVerificationService({ userId, token });
+  if (!req.user?.id) {
+    throw new AppError("Unauthorized", 401);
+  }
+
+  const { token } = req.body;
+  const result = await confirmEmailVerificationService({ userId: req.user.id, token });
 
   return ok(res, result, "Email is verified.")
 },
