@@ -8,6 +8,7 @@ import rateLimit from "express-rate-limit";
 import hpp from "hpp";
 import helmet from "helmet";
 import cors from "cors";
+import userRoute from "./routes/user.routes.ts";
 export const API_V1_PREFIX = "/api/v1";
 
 
@@ -67,6 +68,7 @@ export const createApp = (): Application => {
   );
 
   app.use(`${API_V1_PREFIX}/auth`, authRoute);
+  app.use(`${API_V1_PREFIX}/user`, userRoute);
 
   app.use((req: Request, res: Response, next: NextFunction) => next(new AppError("Route not found.", 404)));
   app.use(globalErrorHandler);

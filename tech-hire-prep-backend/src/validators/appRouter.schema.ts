@@ -61,6 +61,10 @@ export const confirmEmailVerificationSchema = z.object({
   token: z.string().min(1, "token is required"),
 }).strict();
 
+export const userIdParamsSchema = z.object({
+  userId: z.string().regex(/^[a-f\d]{24}$/i),
+}).strict();
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type VerifyOtp = z.infer<typeof verifyOtpSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;

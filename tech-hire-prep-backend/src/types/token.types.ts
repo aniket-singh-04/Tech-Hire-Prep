@@ -5,3 +5,9 @@ export type AccessTokenPayload = {
   sessionId: string;
   role: UserRole;
 };
+
+export enum Theme {
+  LIGHT = "LIGHT",
+  DARK = "DARK",
+  SYSTEM = "SYSTEM",
+}

@@ -28,8 +28,7 @@ export const validateBody = (schema: ZodType) =>
     next();
   };
 
-export const validateParams =
-  (schema: ZodType) =>
+export const validateParams = (schema: ZodType) =>
   (req: Request, res: Response, next: NextFunction) => {
     const result = schema.safeParse(req.params);
 
@@ -37,7 +36,7 @@ export const validateParams =
       return res.status(400).json({
         success: false,
         message: "Invalid route parameters.",
-        details: result.error.flatten(),
+        details: z.treeifyError(result.error),
       });
     }
 
@@ -46,8 +45,7 @@ export const validateParams =
     next();
   };
 
-export const validateQuery =
-  (schema: ZodType) =>
+export const validateQuery = (schema: ZodType) =>
   (req: Request, res: Response, next: NextFunction) => {
     const result = schema.safeParse(req.query);
 

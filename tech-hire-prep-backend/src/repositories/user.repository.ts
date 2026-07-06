@@ -62,6 +62,26 @@ export class UserRepository {
     });
   }
 
+  // static async updateFieldsHydrated(
+  //   userId: string, 
+  //   updatePayload: Record<string, unknown>
+  // ): Promise<UserDocument> {
+    
+  //   // 1. Hydrate the document shell in memory using the payload fields
+  //   const user: UserDocument = UserModel.hydrate({
+  //     _id: userId,
+  //     ...updatePayload
+  //   });
+
+  //   // 2. Loop through the payload keys to mark them modified in one go
+  //   Object.keys(updatePayload).forEach((key) => {
+  //     user.markModified(key);
+  //   });
+
+  //   // 3. Save the document using the repository's native save method
+  //   return await this.save(user);
+  // }
+
   static async save(user: InstanceType<typeof UserModel>) {
     return user.save();
   }
