@@ -1,5 +1,5 @@
 import mongoose, { HydratedDocument, Model, Schema, model } from "mongoose";
-import { ExperienceLevel, IProfile, PreferredLanguage, TargetRole, WeekDay } from "../types/profile.types.ts";
+import { ExperienceLevel, INotificationPreference, IPreferences, IProfile, PreferredLanguage, TargetRole, WeekDay } from "../types/profile.types.ts";
 
 /* ===========================
    SUB SCHEMAS
@@ -21,7 +21,7 @@ const SocialLinksSchema = new Schema({
     }
 );
 
-const NotificationPreferenceSchema = new Schema({
+const NotificationPreferenceSchema = new Schema<INotificationPreference>({
     email: {
         type: Boolean,
         default: true,
@@ -32,7 +32,7 @@ const NotificationPreferenceSchema = new Schema({
     }
 );
 
-const PreferencesSchema = new Schema({
+const PreferencesSchema = new Schema<IPreferences>({
     language: {
         type: String,
         enum: Object.values(PreferredLanguage),
@@ -81,7 +81,6 @@ const ProfileSchema = new Schema<IProfile>({
         ref: "User",
         required: true,
         unique: true,
-        index: true,
     },
 
     username: {

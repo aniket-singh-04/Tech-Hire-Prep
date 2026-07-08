@@ -32,7 +32,7 @@ class ProfileRepository {
     ) {
         return Profile.findOneAndUpdate(
             { userId },
-            update,
+            { $set: update },
             {
                 new: true,
                 runValidators: true,
@@ -66,7 +66,7 @@ class ProfileRepository {
                 },
             },
             {
-                new: true,
+                returnDocument: "after",
                 runValidators: true,
             }
         );
@@ -86,7 +86,7 @@ class ProfileRepository {
                 },
             },
             {
-                new: true,
+                returnDocument: "after",
             }
         );
     }
@@ -94,7 +94,7 @@ class ProfileRepository {
     async deleteByUserId(userId: string) {
         return Profile.findOneAndDelete({ userId });
     }
-    
+
 }
 
 export default new ProfileRepository();

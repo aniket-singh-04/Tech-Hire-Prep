@@ -1,7 +1,7 @@
 import { UserRepository } from "../repositories/user.repository.ts";
 import { hashPassword, verifyPassword } from "./password.service.ts";
 import { consumeOtpChallenge, createOtpChallenge, } from "./otp.service.ts";
-import type { RegisterRequest } from "../types/auth.types.ts";
+import type { ForgotPasswordRequest, LoginRequest, RefreshTokenRequest, RegisterRequest, VerifyOtpRequest } from "../types/auth.types.ts";
 import { OtpPurpose, UserRole, UserStatus } from "../types/user.types.ts";
 import { sendOtpChallengeMail } from "./mail.service.ts";
 import { AppError } from "../utils/appError.ts";
@@ -17,6 +17,7 @@ import { Types } from "mongoose";
 import { VerificationRepo } from "../repositories/verification.repository.ts";
 import { signAccessToken, signRefreshToken, verifyAccessToken, verifyRefreshToken } from "./token.service.ts";
 import { randomUUID } from "node:crypto";
+import { EmailVerificationDto } from "../validators/auth.validation.ts";
 
 export const registerService = async (payload: RegisterRequest) => {
   const email = normalizeEmail(payload.email);
@@ -55,10 +56,10 @@ export const registerService = async (payload: RegisterRequest) => {
 }
 
 
-export const verifyRegistrationOtpService = async (req: Request, challengeId: string, otp: string) => {
+export const verifyRegistrationOtpService = async (payload: VerifyOtpRequest) => {
   const challenge = await consumeOtpChallenge({
-    challengeId,
-    otp,
+    challengeId: payload.challengeId,
+    otp: payload.otp,
     purpose: OtpPurpose.REGISTER,
   });
 
@@ -80,7 +81,7 @@ export const verifyRegistrationOtpService = async (req: Request, challengeId: st
 
   await requestEmailVerificationService({ userId: user._id.toString(), purpose: VerificationPurpose.EMAIL_VERIFICATION });
 
-  const sessionPair = await createSession(req, user);
+  const sessionPair = await createSession(payload.req, user);
 
   return {
     ...sessionPair,
@@ -89,26 +90,26 @@ export const verifyRegistrationOtpService = async (req: Request, challengeId: st
 };
 
 
-export const loginService = async (email: string, password: string,) => {
-  if (email?.trim()) {
-    email = normalizeEmail(email);
+export const loginService = async (payload: LoginRequest) => {
+  if (payload.email?.trim()) {
+    payload.email = normalizeEmail(payload.email);
   }
 
-  if (!email) {
+  if (!payload.email) {
     throw new AppError("Email is required", 400);
   }
 
-  const user = await UserRepository.findByEmailWithPassword(email);
+  const user = await UserRepository.findByEmailWithPassword(payload.email);
 
   if (!user) {
     throw new AppError("Invalid credentials", 401);
   }
 
   if (!user.status || user.deletedAt) {
-    throw new AppError("Account is disabled", 403);
+    throw new AppError("Account is deleted.", 403);
   }
 
-  const isMatch = await verifyPassword(password, user.password);
+  const isMatch = await verifyPassword(payload.password, user.password);
 
   if (!isMatch) {
     throw new AppError("Invalid credentials", 401);
@@ -137,7 +138,7 @@ export const loginService = async (email: string, password: string,) => {
   });
 
   await sendOtpChallengeMail({
-    email,
+    email: payload.email,
     otp,
     purpose: OtpPurpose.LOGIN,
   });
@@ -149,11 +150,7 @@ export const loginService = async (email: string, password: string,) => {
   };
 };
 
-export const verifyLoginOtpService = async (
-  req: Request,
-  challengeId: string,
-  otp: string,
-) => {
+export const verifyLoginOtpService = async (req: Request, challengeId: string, otp: string,) => {
   const challenge = await consumeOtpChallenge({
     challengeId,
     otp,
@@ -179,7 +176,7 @@ export const verifyLoginOtpService = async (
   };
 };
 
-export const requestForgotPasswordLinkService = async (payload: { email: string; }) => {
+export const requestForgotPasswordLinkService = async (payload: ForgotPasswordRequest) => {
   const email = payload.email?.trim() ? normalizeEmail(payload.email) : undefined;
 
   if (!email) {
@@ -312,7 +309,7 @@ export const confirmPasswordChangeOtpService = async (input: { userId: string; c
   };
 };
 
-export const confirmEmailVerificationService = async (input: { userId: string, token: string }) => {
+export const confirmEmailVerificationService = async (input: EmailVerificationDto) => {
   if (!Types.ObjectId.isValid(input.userId)) {
     throw new AppError("Invalid userId", 400);
   }
@@ -355,14 +352,14 @@ export const authMeService = async (accessToken: string) => {
   return await serializeUser(user);
 };
 
-export const refreshSessionService = async (refreshToken: string) => {
-  const decoded = verifyRefreshToken(refreshToken);
+export const refreshSessionService = async (payload: RefreshTokenRequest) => {
+  const decoded = verifyRefreshToken(payload.refreshToken);
 
   const session = await SessionRepository.findById(decoded.sessionId);
   if (!session || session.revokedAt || session.jti !== decoded.jti) {
     throw new AppError("Session expired", 401);
   }
-  if (session.refreshTokenHash !== sha256(refreshToken)) {
+  if (session.refreshTokenHash !== sha256(payload.refreshToken)) {
     session.revokedAt = new Date();
     await session.save();
     throw new AppError("Session invalidated", 401);
@@ -374,7 +371,7 @@ export const refreshSessionService = async (refreshToken: string) => {
   }
 
   const user = await UserRepository.findById(decoded.userId);
-  if (!user ||!user.status || user.deletedAt) {
+  if (!user || !user.status || user.deletedAt) {
     throw new AppError("User not found", 401);
   }
 

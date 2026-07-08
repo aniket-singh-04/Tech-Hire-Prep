@@ -1,14 +1,14 @@
-import { Document, Types } from "mongoose";
+import { Types } from "mongoose";
 
 /* ===========================
    ENUMS
 =========================== */
 
 export enum ExperienceLevel {
-  BEGINNER = "BEGINNER",
-  ENTRY_LEVEL = "ENTRY_LEVEL",
-  INTERMEDIATE = "INTERMEDIATE",
-  ADVANCED = "ADVANCED",
+  BEGINNER = "0",
+  ENTRY_LEVEL = "1-2",
+  INTERMEDIATE = "1-3",
+  ADVANCED = "Above-3",
 }
 
 export enum TargetRole {

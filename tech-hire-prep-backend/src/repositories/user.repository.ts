@@ -1,5 +1,5 @@
 import { UserModel } from "../models/user.model.ts";
-import { IUser } from "../types/user.types.ts";
+import { IUser, UserStatus } from "../types/user.types.ts";
 import { Types } from "mongoose";
 
 export class UserRepository {
@@ -62,11 +62,19 @@ export class UserRepository {
     });
   }
 
+  static async updateAvatar(userId: string, avatarData: { s3Key: string; updatedAt: Date }) {
+    return UserModel.findByIdAndUpdate(
+      userId,
+      { $set: { avatarUrl: avatarData } },
+      { returnDocument: "after", runValidators: true }
+    );
+  }
+
   // static async updateFieldsHydrated(
   //   userId: string, 
   //   updatePayload: Record<string, unknown>
   // ): Promise<UserDocument> {
-    
+
   //   // 1. Hydrate the document shell in memory using the payload fields
   //   const user: UserDocument = UserModel.hydrate({
   //     _id: userId,
@@ -80,7 +88,22 @@ export class UserRepository {
 
   //   // 3. Save the document using the repository's native save method
   //   return await this.save(user);
+  // await profileRepository.save(profile); for normal use like this 
   // }
+  static async updateStatus(userId: string, status: UserStatus) {
+    return UserModel.findByIdAndUpdate(
+      userId,
+      {
+        $set: {
+          status,
+          deletedAt: status === UserStatus.DELETED ? new Date() : null,
+        },
+      },
+      {
+        returnDocument: "after",
+      }
+    );
+  }
 
   static async save(user: InstanceType<typeof UserModel>) {
     return user.save();

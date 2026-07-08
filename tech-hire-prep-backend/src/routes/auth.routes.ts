@@ -1,6 +1,6 @@
 ﻿import { Router, type Router as ExpressRouter } from "express";
 import { authOtpLimiter, authStartLimiter, passwordResetLimiter, validateBody } from "../middlewares/validation.middleware.ts";
-import { confirmEmailVerificationSchema, confirmPasswordChangeSchema, forgotPasswordSchema, loginSchema, registerSchema, verifyOtpSchema } from "../validators/appRouter.schema.ts";
+import { confirmEmailVerificationSchema, confirmPasswordChangeSchema, forgotPasswordSchema, loginSchema, registerSchema, verifyOtpSchema } from "../validators/auth.validation.ts";
 import { authMeController, confirmEmailVerificationController, confirmPasswordChangeOtpController, forgotPasswordWithLinkController, loginController, logoutController, refreshController, registerController, requestEmailVerificationController, requestPasswordChangeOtpController, resetPasswordWithLinkController, verifyLoginOtpController, verifyRegisterOtpController } from "../controllers/auth.controller.ts";
 import { protect } from "../middlewares/auth.middleare.ts";
 

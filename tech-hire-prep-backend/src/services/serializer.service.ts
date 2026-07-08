@@ -1,13 +1,23 @@
 import { UserStatus } from "../types/user.types.ts";
 import { UserDocument } from "../models/user.model.ts";
 import { ProfileDocument } from "../models/profile.model.ts";
+import { getSignedReadUrl } from "./s3.service.ts";
+
+const getScopedAvatarUrl = async (userId: string, s3Key?: string) => {
+  const normalizedKey = s3Key?.trim();
+  if (!normalizedKey || !normalizedKey.startsWith(`users/${userId}/avatar/`)) {
+    return "";
+  }
+
+  return getSignedReadUrl(normalizedKey);
+};
 
 export const serializeUser = async (user: UserDocument) => ({
   id: user._id.toString(),
   name: user.name,
   email: user.email,
   role: user.role,
-  // imageUrl: await getScopedAvatarUrl(user._id.toString(), user.avatarUrl?.s3Key),
+  imageUrl: await getScopedAvatarUrl(user._id.toString(), user.avatarUrl?.s3Key),
   emailVerifiedAt: user.emailVerifiedAt ?? null,
   status: user.status ?? UserStatus.ACTIVE,
 });

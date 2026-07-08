@@ -2,7 +2,6 @@
 import { asyncHandler } from "../utils/asyncHandler.ts";
 import { authMeService, confirmEmailVerificationService, confirmPasswordChangeOtpService, loginService, logoutService, refreshSessionService, registerService, requestForgotPasswordLinkService, requestPasswordChangeOtpService, resetPasswordWithLinkTokenService, verifyLoginOtpService, verifyRegistrationOtpService } from "../services/auth.service.ts";
 import { accepted, created, ok } from "../common/response.ts";
-import { LoginInput, VerifyOtp } from "../validators/appRouter.schema.ts";
 import { AppError } from "../utils/appError.ts";
 import { requestEmailVerificationService } from "../services/emailVerification.service.ts";
 import { VerificationPurpose } from "../types/emailverify.type.ts";
@@ -29,8 +28,8 @@ const refreshCookieOptions = {
 
 
 export const verifyRegisterOtpController = asyncHandler(async (req: Request, res: Response) => {
-  const { challengeId, otp } = req.body as VerifyOtp;
-  const result = await verifyRegistrationOtpService(req, challengeId, otp);
+  const { challengeId, otp } = req.body;
+  const result = await verifyRegistrationOtpService({ req, challengeId, otp });
 
   res.cookie("rid", result.refreshToken, {
     ...refreshCookieOptions,
@@ -50,8 +49,8 @@ export const verifyRegisterOtpController = asyncHandler(async (req: Request, res
 
 
 export const loginController = asyncHandler(async (req: Request, res: Response) => {
-  const { email, password } = req.body as LoginInput;
-  const result = await loginService(email, password);
+  const { email, password } = req.body;
+  const result = await loginService({ email, password });
 
   return created(
     res,
@@ -61,7 +60,7 @@ export const loginController = asyncHandler(async (req: Request, res: Response) 
 });
 
 export const verifyLoginOtpController = asyncHandler(async (req: Request, res: Response) => {
-  const { challengeId, otp } = req.body as VerifyOtp;
+  const { challengeId, otp } = req.body;
   const result = await verifyLoginOtpService(req, challengeId, otp);
 
   res.cookie("rid", result.refreshToken, {
@@ -169,7 +168,7 @@ export const refreshController = asyncHandler(async (req: Request, res: Response
   })
 });
 
-export const logoutController = asyncHandler(async (req:Request, res: Response) => {
+export const logoutController = asyncHandler(async (req: Request, res: Response) => {
   const refreshToken = req.signedCookies?.rid;
   const authHeader = req.headers.authorization;
 

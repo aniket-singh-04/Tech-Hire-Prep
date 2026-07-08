@@ -65,8 +65,5 @@ export const userIdParamsSchema = z.object({
   userId: z.string().regex(/^[a-f\d]{24}$/i),
 }).strict();
 
-export type RegisterInput = z.infer<typeof registerSchema>;
-export type VerifyOtp = z.infer<typeof verifyOtpSchema>;
-export type LoginInput = z.infer<typeof loginSchema>;
-export type PasswordChangeInput = z.infer<typeof confirmPasswordChangeSchema>;
-export type EmailVerificationInput = z.infer<typeof confirmEmailVerificationSchema>;
+export type EmailVerificationDto = z.infer<typeof confirmEmailVerificationSchema>;
+export type UserIdDto = z.infer<typeof userIdParamsSchema>;

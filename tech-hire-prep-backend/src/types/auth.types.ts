@@ -3,6 +3,7 @@
 /*                               JWT PAYLOADS                                 */
 /* -------------------------------------------------------------------------- */
 
+import { Request } from "express";
 import { UserRole } from "./user.types.ts";
 
 export interface JwtAccessPayload {
@@ -34,6 +35,7 @@ export interface LoginRequest {
 }
 
 export interface VerifyOtpRequest {
+  req: Request
   challengeId: string;
   otp: string;
 }
