@@ -1,4 +1,4 @@
-import Redis from "ioredis";
+type Redis = any;
 
 export class QueueService {
   constructor(private readonly redis: Redis) {}

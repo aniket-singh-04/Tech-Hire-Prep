@@ -1,0 +1,123 @@
+import InterviewSessionModel, { InterviewSessionStatus } from "../models/interviewSession.model.ts";
+import { emitToUser } from "../socket/index.ts";
+import { AppError } from "../utils/appError.ts";
+import { Types } from "mongoose";
+
+export const getSessionService = async (sessionId: string, userId: string) => {
+  const session = await InterviewSessionModel.findById(sessionId);
+  if (!session) throw new AppError("Session not found", 404);
+
+  if (session.interviewerId.toString() !== userId && session.intervieweeId.toString() !== userId) {
+    throw new AppError("Unauthorized access to session", 403);
+  }
+
+  return session;
+};
+
+export const getUpcomingSessionsService = async (userId: string) => {
+  return InterviewSessionModel.find({
+    $or: [{ interviewerId: userId }, { intervieweeId: userId }],
+    status: InterviewSessionStatus.SCHEDULED,
+  }).sort({ createdAt: 1 });
+};
+
+export const getHistorySessionsService = async (userId: string) => {
+  return InterviewSessionModel.find({
+    $or: [{ interviewerId: userId }, { intervieweeId: userId }],
+    status: { $in: [InterviewSessionStatus.COMPLETED, InterviewSessionStatus.CANCELLED] },
+  }).sort({ createdAt: -1 });
+};
+
+export const joinSessionService = async (sessionId: string, userId: string) => {
+  const session = await InterviewSessionModel.findById(sessionId);
+  if (!session) throw new AppError("Session not found", 404);
+
+  const isInterviewer = session.interviewerId.toString() === userId;
+  const isInterviewee = session.intervieweeId.toString() === userId;
+
+  if (!isInterviewer && !isInterviewee) {
+    throw new AppError("Unauthorized", 403);
+  }
+
+  const update = isInterviewer ? { interviewerJoinedAt: new Date() } : { intervieweeJoinedAt: new Date() };
+  
+  const updatedSession = await InterviewSessionModel.findByIdAndUpdate(
+    sessionId,
+    { $set: update },
+    { new: true }
+  );
+
+  return updatedSession;
+};
+
+export const leaveSessionService = async (sessionId: string, userId: string) => {
+  // Can just emit a notification to the other peer if needed
+  const session = await InterviewSessionModel.findById(sessionId);
+  if (!session) throw new AppError("Session not found", 404);
+
+  const otherUserId = session.interviewerId.toString() === userId ? session.intervieweeId : session.interviewerId;
+  emitToUser(otherUserId.toString(), "peer-left", { sessionId });
+
+  return { message: "Left session" };
+};
+
+export const startSessionService = async (sessionId: string, userId: string) => {
+  const session = await InterviewSessionModel.findOneAndUpdate(
+    { _id: sessionId, status: InterviewSessionStatus.SCHEDULED },
+    { $set: { status: InterviewSessionStatus.ACTIVE, startTime: new Date() } },
+    { new: true }
+  );
+
+  if (!session) throw new AppError("Cannot start session", 400);
+
+  const otherUserId = session.interviewerId.toString() === userId ? session.intervieweeId : session.interviewerId;
+  emitToUser(otherUserId.toString(), "session-started", { sessionId });
+
+  return session;
+};
+
+export const endSessionService = async (sessionId: string, userId: string) => {
+  const session = await InterviewSessionModel.findOneAndUpdate(
+    { _id: sessionId, status: InterviewSessionStatus.ACTIVE },
+    { $set: { status: InterviewSessionStatus.COMPLETED, endTime: new Date() } },
+    { new: true }
+  );
+
+  if (!session) throw new AppError("Cannot end session", 400);
+
+  const otherUserId = session.interviewerId.toString() === userId ? session.intervieweeId : session.interviewerId;
+  emitToUser(otherUserId.toString(), "session-ended", { sessionId });
+
+  return session;
+};
+
+export const cancelSessionService = async (sessionId: string, userId: string) => {
+  const session = await InterviewSessionModel.findOneAndUpdate(
+    { _id: sessionId, status: InterviewSessionStatus.SCHEDULED },
+    { $set: { status: InterviewSessionStatus.CANCELLED } },
+    { new: true }
+  );
+
+  if (!session) throw new AppError("Cannot cancel session", 400);
+
+  const otherUserId = session.interviewerId.toString() === userId ? session.intervieweeId : session.interviewerId;
+  emitToUser(otherUserId.toString(), "session-cancelled", { sessionId });
+
+  return session;
+};
+
+export const rateSessionService = async (sessionId: string, userId: string, rating: number) => {
+  return InterviewSessionModel.findByIdAndUpdate(
+    sessionId,
+    { $set: { rating } },
+    { new: true }
+  );
+};
+
+export const feedbackSessionService = async (sessionId: string, userId: string, feedback: string) => {
+  return InterviewSessionModel.findByIdAndUpdate(
+    sessionId,
+    { $set: { feedback } },
+    { new: true }
+  );
+};

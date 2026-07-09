@@ -69,10 +69,7 @@ export const serializeProfile = (profile: ProfileDocument, user?: UserDocument,)
   };
 };
 
-import type {
-  AvailableSlotsResponse,
-  QueueStatusResponse,
-} from "./match.types";
+import { matchStatus } from "../types/match.types.ts";
 
 /* -------------------------------------------------------------------------- */
 /*                         POST /matches/request                              */
@@ -94,32 +91,10 @@ export const serializeMatchRequest = (data: {
 });
 
 /* -------------------------------------------------------------------------- */
-/*                        GET /matches/queue-status                           */
-/* -------------------------------------------------------------------------- */
-
-export const serializeQueueStatus = (
-  data: QueueStatusResponse
-) => ({
-  success: true,
-  data,
-});
-
-/* -------------------------------------------------------------------------- */
 /*                         POST /matches/cancel                               */
 /* -------------------------------------------------------------------------- */
 
 export const serializeCancelledMatch = () => ({
   success: true,
   message: "Match request cancelled successfully.",
-});
-
-/* -------------------------------------------------------------------------- */
-/*                     GET /matches/available-slots                           */
-/* -------------------------------------------------------------------------- */
-
-export const serializeAvailableSlots = (
-  slots: AvailableSlotsResponse[]
-) => ({
-  success: true,
-  data: slots,
 });

@@ -1,84 +1,54 @@
-import { IInterviewRequest } from "./match.model";
-
-export interface MatchResult {
-  matched: boolean;
-  candidate?: IInterviewRequest;
-  score?: number;
-}
+import { IInterview } from "../types/match.types.ts";
+import { IProfile } from "../types/profile.types.ts";
+import { getOnlineUsers } from "../socket/index.ts";
 
 export class MatchingEngine {
-  static findBestMatch(
-    current: IInterviewRequest,
-    candidates: IInterviewRequest[]
-  ): MatchResult {
-    if (!candidates.length) {
-      return {
-        matched: false,
-      };
-    }
+  static filterEligibleCandidates(
+    request: IInterview,
+    requestingUserProfile: IProfile,
+    allProfiles: IProfile[],
+    activeSessionUserIds: string[]
+  ): IProfile[] {
+    const onlineUsersMap = getOnlineUsers();
+    const currentDay = new Date().toLocaleString("en-US", { weekday: "long" }).toUpperCase();
+    
+    // Check if the current time fits within an availability slot "HH:mm"
+    const currentTimeStr = new Date().toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit" });
 
-    let bestCandidate: IInterviewRequest | undefined;
-    let highestScore = -1;
+    return allProfiles.filter(profile => {
+      // 1. Cannot match with oneself
+      if (profile.userId.toString() === request.userId.toString()) return false;
 
-    for (const candidate of candidates) {
-      const score = this.calculateCompatibilityScore(
-        current,
-        candidate
-      );
+      // 2. User must be online
+      if (!onlineUsersMap.has(profile.userId.toString())) return false;
 
-      if (score > highestScore) {
-        highestScore = score;
-        bestCandidate = candidate;
+      // 3. User must not be occupied in an active session
+      if (activeSessionUserIds.includes(profile.userId.toString())) return false;
+
+      // 4. Profile score (completion) >= requesting user's profile score
+      if (profile.profileCompletion < requestingUserProfile.profileCompletion) return false;
+
+      // 5. Preferred role matches the requested target role (from profile or request)
+      if (profile.targetRole !== request.preferredRole) return false;
+
+      // 6. Currently available based on Profile availability (Day and Time)
+      // If availability is empty, assume they are available if they are online (or strict based on product requirement).
+      // Let's implement strict check if availability array exists.
+      let isAvailableNow = true;
+      if (profile.availability && profile.availability.length > 0) {
+        const todaySlots = profile.availability.filter(a => a.day === currentDay);
+        if (todaySlots.length === 0) {
+          isAvailableNow = false;
+        } else {
+          isAvailableNow = todaySlots.some(slot => {
+            return currentTimeStr >= slot.startTime && currentTimeStr <= slot.endTime;
+          });
+        }
       }
-    }
+      
+      if (!isAvailableNow) return false;
 
-    if (!bestCandidate) {
-      return {
-        matched: false,
-      };
-    }
-
-    return {
-      matched: true,
-      candidate: bestCandidate,
-      score: highestScore,
-    };
-  }
-
-  private static calculateCompatibilityScore(
-    current: IInterviewRequest,
-    candidate: IInterviewRequest
-  ): number {
-    let score = 0;
-
-    if (
-      current.interviewType ===
-      candidate.interviewType
-    ) {
-      score += 40;
-    }
-
-    if (
-      current.difficulty ===
-      candidate.difficulty
-    ) {
-      score += 20;
-    }
-
-    if (
-      current.preferredLanguage ===
-      candidate.preferredLanguage
-    ) {
-      score += 20;
-    }
-
-    if (
-      current.duration ===
-      candidate.duration
-    ) {
-      score += 20;
-    }
-
-    return score;
+      return true;
+    });
   }
 }

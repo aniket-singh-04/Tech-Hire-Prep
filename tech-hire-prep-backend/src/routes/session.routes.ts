@@ -1,6 +1,9 @@
-﻿import { Router, type Router as ExpressRouter } from "express";
+import { Router, type Router as ExpressRouter } from "express";
 import { validateBody, validateParams } from "../middlewares/validation.middleware.ts";
 import { protect } from "../middlewares/auth.middleare.ts";
+import { scheduleSessionSchema, sessionIdParamsSchema, rescheduleSessionSchema, reportSessionSchema, rateSessionSchema, feedbackSchema } from "../validators/interviewSession.validation.ts";
+import {
+  scheduleSessionController, upcomingSessionsController, historySessionsController, getSessionController, rescheduleSessionController, cancelSessionController, joinSessionController, leaveSessionController, startSessionController, endSessionController, reconnectSessionController, reportSessionController, rateSessionController, feedbackSessionController } from "../controllers/interviewSession.controller.ts";
 
 const sessionRoute: ExpressRouter = Router();
 
@@ -21,4 +24,3 @@ sessionRoute.post("/:sessionId/rate", validateParams(sessionIdParamsSchema), val
 sessionRoute.post("/:sessionId/feedback", validateParams(sessionIdParamsSchema), validateBody(feedbackSchema), feedbackSessionController);
 
 export default sessionRoute;
-

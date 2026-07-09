@@ -1,4 +1,4 @@
-﻿import express, { type Application, type NextFunction, type Request, type Response } from "express";
+import express, { type Application, type NextFunction, type Request, type Response } from "express";
 import cookieParser from "cookie-parser";
 import { AppError } from "./utils/appError.ts";
 import { ENV } from "./config/envConfig.ts";
@@ -9,8 +9,11 @@ import hpp from "hpp";
 import helmet from "helmet";
 import cors from "cors";
 import userRoute from "./routes/user.routes.ts";
+import matchRoute from "./routes/match.routes.ts";
+import sessionRoute from "./routes/session.routes.ts";
+import walletRoute from "./routes/wallet.routes.ts";
+import webrtcRoute from "./routes/webrtc.routes.ts";
 export const API_V1_PREFIX = "/api/v1";
-
 
 const corsOptions = {
   origin(origin: string | undefined, callback: (error: Error | null, allow?: boolean) => void) {
@@ -63,12 +66,15 @@ export const createApp = (): Application => {
       limit: 300,
       standardHeaders: true,
       legacyHeaders: false,
-
     }),
   );
 
   app.use(`${API_V1_PREFIX}/auth`, authRoute);
   app.use(`${API_V1_PREFIX}/user`, userRoute);
+  app.use(`${API_V1_PREFIX}/match`, matchRoute);
+  app.use(`${API_V1_PREFIX}/session`, sessionRoute);
+  app.use(`${API_V1_PREFIX}/webrtc`, webrtcRoute);
+  app.use(`${API_V1_PREFIX}/wallet`, walletRoute);
 
   app.use((req: Request, res: Response, next: NextFunction) => next(new AppError("Route not found.", 404)));
   app.use(globalErrorHandler);

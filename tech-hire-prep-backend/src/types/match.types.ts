@@ -6,12 +6,16 @@ export enum interviewType {
   DSA = "DSA",
   SYSTEM_DESIGN = "SYSTEM_DESIGN",
   HR = "HR",
+  PROJECT_PROBLEM = "PROJECT_PROBLEM",
   BEHAVIORAL = "BEHAVIORAL"
 }
 
 export enum matchStatus {
   SEARCHING = "SEARCHING",
   MATCHED = "MATCHED",
+  ASSIGNED = "ASSIGNED",
+  IN_PROGRESS = "IN_PROGRESS",
+  COMPLETED = "COMPLETED",
   CANCELLED = "CANCELLED",
   EXPIRED = "EXPIRED"
 }
@@ -23,9 +27,28 @@ export interface IInterview {
   difficulty: ExperienceLevel,
   preferredLanguage: PreferredLanguage,
   duration: number,
-  status: matchStatus
-  matchedUserId: Types.ObjectId,
-  interviewSessionId: Types.ObjectId
+  status: matchStatus;
+  matchedUserId?: Types.ObjectId;
+  interviewSessionId?: Types.ObjectId;
+  
+  // Scheduling and Tracking fields
+  availableTimeSlot?: {
+    startTime: Date;
+    endTime: Date;
+  };
+  acceptedTime?: Date;
+  interviewStartTime?: Date;
+  interviewEndTime?: Date;
+  assignmentTimestamp?: Date;
+  expirationTimestamp?: Date;
+  
+  // First-Accept Wins Tracking
+  notifiedUsers?: Array<{
+    userId: Types.ObjectId;
+    status: "PENDING" | "ACCEPTED" | "REJECTED";
+    notifiedAt: Date;
+    respondedAt?: Date;
+  }>;
 }
 
 interface MatchRequestInput {

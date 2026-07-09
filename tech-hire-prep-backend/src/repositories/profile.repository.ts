@@ -21,6 +21,10 @@ class ProfileRepository {
         );
     }
 
+    async findManyByUserIds(userIds: string[]) {
+        return Profile.find({ userId: { $in: userIds } });
+    }
+
     async existsByUserId(userId: string): Promise<boolean> {
         const exists = await Profile.exists({ userId });
         return !!exists;
@@ -39,20 +43,6 @@ class ProfileRepository {
             }
         );
     }
-
-    // async updateAvatar(userId: string, avatar: string) {
-    //     return Profile.findOneAndUpdate(
-    //         { userId },
-    //         {
-    //             $set: {
-    //                 avatar,
-    //             },
-    //         },
-    //         {
-    //             new: true,
-    //         }
-    //     );
-    // }
 
     async isUsernameExist(username: string): Promise<boolean> {
         const exists = await Profile.exists({ username });

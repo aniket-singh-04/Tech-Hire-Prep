@@ -58,6 +58,36 @@ const InterviewRequestSchema = new Schema<IInterview>(
       type: Schema.Types.ObjectId,
       ref: "InterviewSession",
     },
+
+    availableTimeSlot: {
+      startTime: Date,
+      endTime: Date,
+    },
+    acceptedTime: Date,
+    interviewStartTime: Date,
+    interviewEndTime: Date,
+    assignmentTimestamp: Date,
+    expirationTimestamp: Date,
+    
+    notifiedUsers: [
+      {
+        userId: {
+          type: Schema.Types.ObjectId,
+          ref: "User",
+          required: true,
+        },
+        status: {
+          type: String,
+          enum: ["PENDING", "ACCEPTED", "REJECTED"],
+          default: "PENDING",
+        },
+        notifiedAt: {
+          type: Date,
+          default: Date.now,
+        },
+        respondedAt: Date,
+      }
+    ]
   },
   {
     timestamps: true,

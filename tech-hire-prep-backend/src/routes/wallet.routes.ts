@@ -1,7 +1,8 @@
-﻿import { Router, type Router as ExpressRouter } from "express";
+import { Router, type Router as ExpressRouter } from "express";
 import { protect } from "../middlewares/auth.middleare.ts";
 import { validateBody } from "../middlewares/validation.middleware.ts";
-
+import { walletMutationSchema } from "../validators/wallet.validation.ts";
+import { walletBalanceController, walletLedgerController, walletEarnController, walletSpendController, walletRedeemController } from "../controllers/wallet.controller.ts";
 
 const walletRoute: ExpressRouter = Router();
 

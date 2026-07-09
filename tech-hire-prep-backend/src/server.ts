@@ -1,9 +1,11 @@
-﻿import http from "http";
+import http from "http";
 import app from "./app.ts";
 import { ENV } from "./config/envConfig.ts";
 import { connectDB } from "./config/database.ts";
+import { initSocketServer } from "./socket/index.ts";
 
 const server = http.createServer(app);
+initSocketServer(server);
 
 const bootstrap = async (): Promise<void> => {
   try {
