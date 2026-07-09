@@ -54,6 +54,11 @@ class ProfileRepository {
     //     );
     // }
 
+    async isUsernameExist(username: string): Promise<boolean> {
+        const exists = await Profile.exists({ username });
+        return !!exists;
+    };
+
     async updateAvailability(
         userId: string,
         availability: IProfile["availability"]

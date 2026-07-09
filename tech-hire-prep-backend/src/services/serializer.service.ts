@@ -69,4 +69,57 @@ export const serializeProfile = (profile: ProfileDocument, user?: UserDocument,)
   };
 };
 
+import type {
+  AvailableSlotsResponse,
+  QueueStatusResponse,
+} from "./match.types";
 
+/* -------------------------------------------------------------------------- */
+/*                         POST /matches/request                              */
+/* -------------------------------------------------------------------------- */
+
+export const serializeMatchRequest = (data: {
+  requestId: string;
+  status: string;
+  queuePosition: number;
+  estimatedWait: number;
+}) => ({
+  success: true,
+  data: {
+    requestId: data.requestId,
+    status: data.status,
+    queuePosition: data.queuePosition,
+    estimatedWait: data.estimatedWait,
+  },
+});
+
+/* -------------------------------------------------------------------------- */
+/*                        GET /matches/queue-status                           */
+/* -------------------------------------------------------------------------- */
+
+export const serializeQueueStatus = (
+  data: QueueStatusResponse
+) => ({
+  success: true,
+  data,
+});
+
+/* -------------------------------------------------------------------------- */
+/*                         POST /matches/cancel                               */
+/* -------------------------------------------------------------------------- */
+
+export const serializeCancelledMatch = () => ({
+  success: true,
+  message: "Match request cancelled successfully.",
+});
+
+/* -------------------------------------------------------------------------- */
+/*                     GET /matches/available-slots                           */
+/* -------------------------------------------------------------------------- */
+
+export const serializeAvailableSlots = (
+  slots: AvailableSlotsResponse[]
+) => ({
+  success: true,
+  data: slots,
+});

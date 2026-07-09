@@ -7,6 +7,7 @@ import { AppError } from "../utils/appError.ts";
 import { serializeProfile, serializePublicProfile, serializeUser } from "./serializer.service.ts";
 import { getSignedUploadUrl } from "./s3.service.ts";
 import { SaveAvatarDto, UpdateAvailabilityDto } from "../validators/user.validation.ts";
+import mongoose from "mongoose";
 import { UserIdDto } from "../validators/auth.validation.ts";
 import { UserStatus } from "../types/user.types.ts";
 import { SessionRepository } from "../repositories/session.repository.ts";
@@ -27,13 +28,31 @@ export const getMyPublicProfileService = async (username: string) => {
 };
 
 export const getMyProfileService = async (payload: UserIdDto) => {
-    const profile = await profileRepository.findByUserId(payload.userId);
-    if (!profile) {
-        throw new AppError("Profile not found", 404);
-    }
+    let profile = await profileRepository.findByUserId(payload.userId);
 
+    if (!profile) {
+        const user = await UserRepository.findById(payload.userId);
+
+        if (!user) {
+            throw new Error("User not found");
+        }
+
+        const baseUsername = (user.email?.split("@")[0] ?? user.name?.trim() ?? "techhireprepuser").toLowerCase().replace(/[^a-z0-9]/g, "");
+
+        let username = baseUsername;
+        let count = 1;
+
+        while (await profileRepository.isUsernameExist(username)) {
+            username = `${baseUsername}${count++}`;
+        }
+
+        profile = await profileRepository.create({
+            userId: new mongoose.Types.ObjectId(payload.userId),
+            username,
+        });
+    }
     return serializeProfile(profile);
-}
+};
 
 export const computeCompletionScore = (profile: Partial<ProfileDocument>): number => {
     let score = 0;
@@ -164,7 +183,7 @@ export const updateMyAvailabilityService = async (userId: string, payload: Updat
 
 export const deleteAccountService = async (payload: UserIdDto) => {
     const user = await UserRepository.updateStatus(payload.userId, UserStatus.DELETED);
-    if(!user){
+    if (!user) {
         throw new AppError("User is not found.", 404);
     }
     const session = await SessionRepository.revokeAllUserSessions(payload.userId);
