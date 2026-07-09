@@ -27,10 +27,11 @@ export interface IInterview {
   difficulty: ExperienceLevel,
   preferredLanguage: PreferredLanguage,
   duration: number,
+  description?: string;
   status: matchStatus;
   matchedUserId?: Types.ObjectId;
   interviewSessionId?: Types.ObjectId;
-  
+
   // Scheduling and Tracking fields
   availableTimeSlot?: {
     startTime: Date;
@@ -41,7 +42,7 @@ export interface IInterview {
   interviewEndTime?: Date;
   assignmentTimestamp?: Date;
   expirationTimestamp?: Date;
-  
+
   // First-Accept Wins Tracking
   notifiedUsers?: Array<{
     userId: Types.ObjectId;
@@ -57,6 +58,7 @@ interface MatchRequestInput {
   difficulty: ExperienceLevel,
   preferredLanguage: PreferredLanguage,
   duration: number,
+  description?: string;
 }
 
 export interface RequestMatchServiceInput {

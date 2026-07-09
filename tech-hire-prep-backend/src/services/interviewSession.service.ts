@@ -4,7 +4,9 @@ import { AppError } from "../utils/appError.ts";
 import { Types } from "mongoose";
 
 export const getSessionService = async (sessionId: string, userId: string) => {
-  const session = await InterviewSessionModel.findById(sessionId);
+  const session = await InterviewSessionModel.findById(sessionId)
+    .populate("matchId", "interviewType preferredRole difficulty preferredLanguage duration description");
+
   if (!session) throw new AppError("Session not found", 404);
 
   if (session.interviewerId.toString() !== userId && session.intervieweeId.toString() !== userId) {
@@ -107,6 +109,13 @@ export const cancelSessionService = async (sessionId: string, userId: string) =>
 };
 
 export const rateSessionService = async (sessionId: string, userId: string, rating: number) => {
+  const session = await InterviewSessionModel.findById(sessionId);
+  if (!session) throw new AppError("Session not found", 404);
+
+  if (session.interviewerId.toString() !== userId && session.intervieweeId.toString() !== userId) {
+    throw new AppError("Unauthorized access to session", 403);
+  }
+
   return InterviewSessionModel.findByIdAndUpdate(
     sessionId,
     { $set: { rating } },
@@ -115,6 +124,13 @@ export const rateSessionService = async (sessionId: string, userId: string, rati
 };
 
 export const feedbackSessionService = async (sessionId: string, userId: string, feedback: string) => {
+  const session = await InterviewSessionModel.findById(sessionId);
+  if (!session) throw new AppError("Session not found", 404);
+
+  if (session.interviewerId.toString() !== userId && session.intervieweeId.toString() !== userId) {
+    throw new AppError("Unauthorized access to session", 403);
+  }
+
   return InterviewSessionModel.findByIdAndUpdate(
     sessionId,
     { $set: { feedback } },

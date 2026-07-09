@@ -60,13 +60,16 @@ export const requestMatchService = async (input: RequestMatchServiceInput) => {
         const eligibleUserIds = eligibleProfiles.map(p => p.userId);
         await MatchRepository.addNotifiedUsers(request._id as Types.ObjectId, eligibleUserIds);
 
-        // Notify them in real-time
+        // Notify them in real-time with full request context so they can make an informed decision
         for (const candidate of eligibleUserIds) {
             emitToUser(candidate.toString(), "interview-request", {
                 requestId: request._id,
                 interviewType: request.interviewType,
+                preferredRole: request.preferredRole,
+                difficulty: request.difficulty,
                 preferredLanguage: request.preferredLanguage,
                 duration: request.duration,
+                description: request.description ?? null,
                 requesterHeadline: profile.headline,
             });
         }
@@ -102,11 +105,19 @@ export const acceptMatchService = async (userId: string, requestId: string) => {
         roomId,
     });
 
-    // Notify requester
+    // Notify requester with full context so they know who accepted and can prepare
     emitToUser(request.userId.toString(), "interview-assigned", {
         requestId,
         sessionId: session._id,
         interviewerId: userObjectId,
+        matchDetails: {
+            interviewType: request.interviewType,
+            preferredRole: request.preferredRole,
+            difficulty: request.difficulty,
+            preferredLanguage: request.preferredLanguage,
+            duration: request.duration,
+            description: request.description ?? null,
+        },
     });
 
     // Notify other candidates that the request is closed

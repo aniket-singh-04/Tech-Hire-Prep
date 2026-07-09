@@ -13,6 +13,7 @@ import matchRoute from "./routes/match.routes.ts";
 import sessionRoute from "./routes/session.routes.ts";
 import walletRoute from "./routes/wallet.routes.ts";
 import webrtcRoute from "./routes/webrtc.routes.ts";
+import editorRoute from "./routes/editor.routes.ts";
 export const API_V1_PREFIX = "/api/v1";
 
 const corsOptions = {
@@ -75,6 +76,7 @@ export const createApp = (): Application => {
   app.use(`${API_V1_PREFIX}/session`, sessionRoute);
   app.use(`${API_V1_PREFIX}/webrtc`, webrtcRoute);
   app.use(`${API_V1_PREFIX}/wallet`, walletRoute);
+  app.use(`${API_V1_PREFIX}/editor`, editorRoute);
 
   app.use((req: Request, res: Response, next: NextFunction) => next(new AppError("Route not found.", 404)));
   app.use(globalErrorHandler);

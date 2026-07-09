@@ -9,6 +9,7 @@ export const matchRequestSchema = z.object({
   difficulty: z.enum(ExperienceLevel),
   preferredLanguage: z.enum(PreferredLanguage),
   duration: z.number().int().min(15).max(180),
+  description: z.string().trim().max(2000).optional(),
 });
 
 export const availableSlotsQuerySchema = z.object({

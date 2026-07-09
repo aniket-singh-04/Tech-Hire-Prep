@@ -42,6 +42,12 @@ const InterviewRequestSchema = new Schema<IInterview>(
       max: 180,
     },
 
+    description: {
+      type: String,
+      trim: true,
+      maxlength: 2000,
+    },
+
     status: {
       type: String,
       enum: Object.values(matchStatus),

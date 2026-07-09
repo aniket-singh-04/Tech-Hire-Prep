@@ -1,4 +1,4 @@
-﻿import type { Request, Response } from "express";
+import type { Request, Response } from "express";
 import { asyncHandler } from "../utils/asyncHandler.ts";
 import { authMeService, confirmEmailVerificationService, confirmPasswordChangeOtpService, loginService, logoutService, refreshSessionService, registerService, requestForgotPasswordLinkService, requestPasswordChangeOtpService, resetPasswordWithLinkTokenService, verifyLoginOtpService, verifyRegistrationOtpService } from "../services/auth.service.ts";
 import { accepted, created, ok } from "../common/response.ts";
@@ -159,7 +159,7 @@ export const refreshController = asyncHandler(async (req: Request, res: Response
     throw new AppError("Refresh token missing", 401);
   }
 
-  const result = await refreshSessionService(refreshToken);
+  const result = await refreshSessionService({ refreshToken });
   res.cookie("rid", result.refreshToken, { ...refreshCookieOptions, maxAge: 7 * 24 * 60 * 60 * 1000, });
 
   return ok(res, {

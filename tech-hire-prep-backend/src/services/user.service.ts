@@ -34,7 +34,7 @@ export const getMyProfileService = async (payload: UserIdDto) => {
         const user = await UserRepository.findById(payload.userId);
 
         if (!user) {
-            throw new Error("User not found");
+            throw new AppError("User not found.", 404);
         }
 
         const baseUsername = (user.email?.split("@")[0] ?? user.name?.trim() ?? "techhireprepuser").toLowerCase().replace(/[^a-z0-9]/g, "");

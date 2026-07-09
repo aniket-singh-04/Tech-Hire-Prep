@@ -20,6 +20,9 @@ export interface IInterviewSession {
   notes?: string;
   feedback?: string;
   rating?: number;
+  // Editor state
+  code?: string;
+  language?: string;
 }
 
 const InterviewSessionSchema = new Schema<IInterviewSession>(
@@ -75,6 +78,13 @@ const InterviewSessionSchema = new Schema<IInterviewSession>(
       type: Number,
       min: 1,
       max: 5,
+    },
+    code: {
+      type: String,
+    },
+    language: {
+      type: String,
+      trim: true,
     },
   },
   {
