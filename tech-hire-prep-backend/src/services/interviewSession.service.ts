@@ -2,6 +2,7 @@ import InterviewSessionModel, { InterviewSessionStatus } from "../models/intervi
 import { emitToUser } from "../socket/index.ts";
 import { AppError } from "../utils/appError.ts";
 import { Types } from "mongoose";
+import { PaymentRepository } from "../repositories/payment.repository.ts";
 
 export const getSessionService = async (sessionId: string, userId: string) => {
   const session = await InterviewSessionModel.findById(sessionId)
@@ -40,6 +41,23 @@ export const joinSessionService = async (sessionId: string, userId: string) => {
   if (!isInterviewer && !isInterviewee) {
     throw new AppError("Unauthorized", 403);
   }
+
+  // --- Payment gate ---
+  // Only the person who requested the interview (interviewee) needs to pay.
+  if (isInterviewee) {
+    const confirmedPayment = await PaymentRepository.findPaidByUserAndSession(
+      userId,
+      sessionId
+    );
+
+    if (!confirmedPayment) {
+      throw new AppError(
+        "Payment required to join this session. Please complete the payment and try again.",
+        402
+      );
+    }
+  }
+  // --- End payment gate ---
 
   const update = isInterviewer ? { interviewerJoinedAt: new Date() } : { intervieweeJoinedAt: new Date() };
   

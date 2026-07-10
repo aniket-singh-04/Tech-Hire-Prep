@@ -1,0 +1,4 @@
+export const PAYMENT_CONSTANTS = {
+  INTERVIEW_COST_INR: 9.9,
+  CURRENCY_INR: "INR",
+};
