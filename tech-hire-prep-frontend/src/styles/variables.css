@@ -1,5 +1,5 @@
 /* =========================================
-   CSS Custom Properties - Typography Utilities
+   CSS Utility Classes — Typography
 ========================================= */
 
 .text-primary {
@@ -14,15 +14,23 @@
   color: var(--text-muted);
 }
 
+.text-subtle {
+  color: var(--text-subtle);
+}
+
 .text-inverse {
   color: var(--text-inverse);
 }
 
+.text-accent {
+  color: var(--accent);
+}
+
 /* =========================================
-   CSS Custom Properties - Background Utilities
+   CSS Utility Classes — Background
 ========================================= */
 
-.bg-primary {
+.bg-app {
   background-color: var(--bg-app);
 }
 
@@ -42,8 +50,20 @@
   background-color: var(--surface-soft);
 }
 
+.bg-surface-hover {
+  background-color: var(--surface-hover);
+}
+
+.bg-accent {
+  background-color: var(--accent);
+}
+
+.bg-accent-soft {
+  background-color: var(--accent-soft);
+}
+
 /* =========================================
-   CSS Custom Properties - Border Utilities
+   CSS Utility Classes — Border
 ========================================= */
 
 .border-subtle {
@@ -54,12 +74,16 @@
   border-color: var(--border-strong);
 }
 
-.border {
+.border-base {
   border-color: var(--border);
 }
 
+.border-accent {
+  border-color: var(--accent);
+}
+
 /* =========================================
-   CSS Custom Properties - Shadow Utilities
+   CSS Utility Classes — Shadow
 ========================================= */
 
 .shadow-sm {
@@ -79,57 +103,26 @@
 }
 
 /* =========================================
-   CSS Custom Properties - Spacing Utilities
+   CSS Utility Classes — Spacing
 ========================================= */
 
-.gap-xs {
-  gap: var(--spacing-xs);
-}
+.gap-xs  { gap: var(--spacing-xs); }
+.gap-sm  { gap: var(--spacing-sm); }
+.gap-md  { gap: var(--spacing-md); }
+.gap-lg  { gap: var(--spacing-lg); }
+.gap-xl  { gap: var(--spacing-xl); }
 
-.gap-sm {
-  gap: var(--spacing-sm);
-}
+.p-xs  { padding: var(--spacing-xs); }
+.p-sm  { padding: var(--spacing-sm); }
+.p-md  { padding: var(--spacing-md); }
+.p-lg  { padding: var(--spacing-lg); }
+.p-xl  { padding: var(--spacing-xl); }
 
-.gap-md {
-  gap: var(--spacing-md);
-}
+/* =========================================
+   CSS Utility Classes — Border Radius
+========================================= */
 
-.gap-lg {
-  gap: var(--spacing-lg);
-}
-
-.gap-xl {
-  gap: var(--spacing-xl);
-}
-
-.p-xs {
-  padding: var(--spacing-xs);
-}
-
-.p-sm {
-  padding: var(--spacing-sm);
-}
-
-.p-md {
-  padding: var(--spacing-md);
-}
-
-.p-lg {
-  padding: var(--spacing-lg);
-}
-
-.p-xl {
-  padding: var(--spacing-xl);
-}
-
-.rounded-sm {
-  border-radius: var(--radius-sm);
-}
-
-.rounded-md {
-  border-radius: var(--radius-md);
-}
-
-.rounded-lg {
-  border-radius: var(--radius-lg);
-}
+.rounded-sm  { border-radius: var(--radius-sm); }
+.rounded-md  { border-radius: var(--radius-md); }
+.rounded-lg  { border-radius: var(--radius-lg); }
+.rounded-xl  { border-radius: var(--radius-xl); }

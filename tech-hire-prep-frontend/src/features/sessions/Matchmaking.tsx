@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { VscSearch, VscClose, VscLoading, VscRocket } from 'react-icons/vsc';
-import { matchApi } from '../../services/sessionApi';
-import { userApi } from '../../services/userApi';
+import { matchApi, profileApi } from '../../services/backendApi';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import type { Profile } from '../../types';
 import { FaClock } from 'react-icons/fa';
+import { Select } from '../../components/ui/Select';
 
 const ROLES = ['Software Engineer', 'Data Scientist', 'Product Manager', 'Systems Engineer', 'DevOps Engineer'];
 
@@ -19,12 +19,12 @@ export const Matchmaking: React.FC = () => {
   const [isCancelling, setIsCancelling] = useState(false);
   const [targetRole, setTargetRole] = useState('');
   const [notes, setNotes] = useState('');
-  const [slots, setSlots] = useState<any[]>([]);
+  const [slots] = useState<any[]>([{ day: 'Monday', start: '09:00', end: '10:00', timezone: 'UTC' }]);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const loadStatus = useCallback(async () => {
-    const status = await matchApi.getQueueStatus();
-    const s = status as { status: string; requestId?: string; sessionId?: string; expiresAt?: string } | null;
+    const status: any = await matchApi.getQueueStatus();
+    const s = (status?.data ?? status) as { status: string; requestId?: string; sessionId?: string; expiresAt?: string } | null;
     setQueueStatus(s);
     if (s?.sessionId) {
       clearInterval(pollingRef.current!);
@@ -35,15 +35,14 @@ export const Matchmaking: React.FC = () => {
   useEffect(() => {
     const init = async () => {
       try {
-        const [p, slotsData] = await Promise.allSettled([
-          userApi.getMyProfile(),
-          matchApi.getAvailableSlots(),
+        const [p] = await Promise.allSettled([
+          profileApi.getMe()
         ]);
         if (p.status === 'fulfilled') {
-          setProfile(p.value);
-          setTargetRole(p.value.targetRole ?? '');
+          const profileValue: any = p.value;
+          setProfile(profileValue);
+          setTargetRole(profileValue?.targetRole ?? '');
         }
-        if (slotsData.status === 'fulfilled') setSlots(slotsData.value.slots);
         await loadStatus();
       } catch {
         // ignore init error
@@ -65,7 +64,12 @@ export const Matchmaking: React.FC = () => {
   const handleRequest = async () => {
     setIsRequesting(true);
     try {
-      await matchApi.requestMatch({ targetRole: targetRole || profile?.targetRole, skillTags: profile?.skillTags, notes: notes || undefined });
+      await matchApi.requestMatch({ 
+        interviewType: 'PEER',
+        preferredRole: targetRole || profile?.targetRole?.toUpperCase(), 
+        description: notes || undefined,
+        duration: 60,
+      });
       await loadStatus();
     } catch (e: unknown) {
       alert((e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Failed to request match');
@@ -130,16 +134,12 @@ export const Matchmaking: React.FC = () => {
           <CardContent className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-muted mb-2">Target Role</label>
-              <div className="flex flex-wrap gap-2">
-                {ROLES.map(role => (
-                  <button key={role} type="button" onClick={() => setTargetRole(role)}
-                    className={`px-3 py-1.5 rounded-full border text-sm font-medium transition-all ${
-                      targetRole === role ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted hover:border-border'
-                    }`}>
-                    {role}
-                  </button>
-                ))}
-              </div>
+              <Select 
+                options={ROLES.map(r => ({ label: r, value: r }))} 
+                value={targetRole || ''}
+                onChange={setTargetRole}
+                placeholder="Select your target role"
+              />
               {profile?.targetRole && targetRole !== profile.targetRole && (
                 <p className="text-xs text-subtle mt-1">Your profile role: {profile.targetRole}</p>
               )}
@@ -195,3 +195,4 @@ export const Matchmaking: React.FC = () => {
     </div>
   );
 };
+

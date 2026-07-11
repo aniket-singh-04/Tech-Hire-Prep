@@ -6,23 +6,47 @@ export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 }
 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className, type, label, error, ...props }, ref) => {
+  ({ className = '', type, label, error, id, ...props }, ref) => {
+    const inputId = id ?? label?.toLowerCase().replace(/\s+/g, '-');
+
+    const inputClasses = [
+      'input-field',
+      error ? 'is-error' : '',
+      className,
+    ]
+      .filter(Boolean)
+      .join(' ');
+
     return (
       <div className="w-full">
         {label && (
-          <label className="block text-sm font-medium text-muted mb-1">
+          <label
+            htmlFor={inputId}
+            className="block text-sm font-medium mb-1.5"
+            style={{ color: 'var(--text-secondary)' }}
+          >
             {label}
           </label>
         )}
         <input
+          id={inputId}
           type={type}
-          className={
-            'flex h-10 w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm placeholder:text-subtle focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent disabled:cursor-not-allowed disabled:opacity-50 transition-colors border-danger focus:ring-danger'
-          }
+          className={inputClasses}
           ref={ref}
+          aria-invalid={error ? 'true' : undefined}
+          aria-describedby={error ? `${inputId}-error` : undefined}
           {...props}
         />
-        {error && <p className="mt-1 text-sm text-danger">{error}</p>}
+        {error && (
+          <p
+            id={`${inputId}-error`}
+            className="mt-1.5 text-xs font-medium"
+            style={{ color: 'var(--danger)' }}
+            role="alert"
+          >
+            {error}
+          </p>
+        )}
       </div>
     );
   }

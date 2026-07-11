@@ -52,7 +52,11 @@ export const Sessions: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    sessionApi.getUpcoming().then(setUpcoming).catch(() => {}).finally(() => setLoading(false));
+    sessionApi.getUpcoming()
+      .then((res: any) => Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : [])
+      .then((items) => setUpcoming(items))
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
 
   if (loading) return <div className="flex justify-center items-center h-64"><Spinner size="lg" /></div>;
@@ -100,7 +104,11 @@ export const History: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    sessionApi.getHistory().then(setHistory).catch(() => {}).finally(() => setLoading(false));
+    sessionApi.getHistory()
+      .then((res: any) => Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : [])
+      .then((items) => setHistory(items))
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
 
   if (loading) return <div className="flex justify-center items-center h-64"><Spinner size="lg" /></div>;

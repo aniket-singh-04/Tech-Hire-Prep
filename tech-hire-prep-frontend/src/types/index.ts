@@ -117,12 +117,7 @@ export interface FeedbackRubric {
 }
 
 export interface FeedbackPayload {
-  rating: number;
-  rubric: FeedbackRubric;
-  strengths: string[];
-  improvements: string[];
-  summary?: string;
-  recommendation?: FeedbackRecommendation;
+  feedback: string;
 }
 
 // ─── Wallet ───────────────────────────────────────────────────────────────────

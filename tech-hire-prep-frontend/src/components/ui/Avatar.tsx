@@ -3,46 +3,56 @@ import React from 'react';
 interface AvatarProps {
   name?: string;
   avatarUrl?: string;
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
   className?: string;
 }
 
-const getInitials = (name?: string) => {
+const getInitials = (name?: string): string => {
   if (!name) return '?';
-  return name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join('')
+    .toUpperCase();
 };
 
-const colors = [
-  'bg-blue-500', 'bg-success', 'bg-purple-500',
-  'bg-orange-500', 'bg-pink-500', 'bg-teal-500',
-];
-
-const getColor = (name?: string) => {
-  if (!name) return colors[0];
-  return colors[name.charCodeAt(0) % colors.length];
+const sizeMap: Record<string, { wh: string; text: string }> = {
+  xs: { wh: 'w-6 h-6',  text: 'text-xs' },
+  sm: { wh: 'w-8 h-8',  text: 'text-xs' },
+  md: { wh: 'w-10 h-10', text: 'text-sm' },
+  lg: { wh: 'w-12 h-12', text: 'text-base' },
+  xl: { wh: 'w-16 h-16', text: 'text-xl' },
 };
 
-export const Avatar: React.FC<AvatarProps> = ({ name, avatarUrl, size = 'md', className }) => {
-  const sizes = {
-    sm: 'w-7 h-7 text-xs',
-    md: 'w-9 h-9 text-sm',
-    lg: 'w-12 h-12 text-base',
-    xl: 'w-16 h-16 text-xl',
-  };
+export const Avatar: React.FC<AvatarProps> = ({
+  name,
+  avatarUrl,
+  size = 'md',
+  className = '',
+}) => {
+  const { wh, text } = sizeMap[size] ?? sizeMap.md;
 
   if (avatarUrl) {
     return (
       <img
         src={avatarUrl}
-        alt={name}
-        className={`rounded-full object-cover flex-shrink-0  ${className}`}
+        alt={name ?? 'Avatar'}
+        className={`${wh} rounded-full object-cover flex-shrink-0 ring-2 ring-white/10 ${className}`}
       />
     );
   }
 
   return (
     <div
-      className={`rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0`}
+      className={`${wh} ${text} rounded-full flex items-center justify-center flex-shrink-0 font-bold select-none ${className}`}
+      style={{
+        background: 'var(--accent-gradient)',
+        color: '#fff',
+        letterSpacing: '0.03em',
+      }}
+      aria-label={name ?? 'User avatar'}
     >
       {getInitials(name)}
     </div>

@@ -1,10 +1,121 @@
+/* =====================================================
+ Aurora Component Theme
+ Optimized for:
+ - Interview platform
+ - Coding dashboard
+ - Video calls
+ - Analytics
+ - Glassmorphism cards
+===================================================== */
+
 /* =========================================
    Theme-Specific Component Styles
 ========================================= */
 
-/* State Components */
+/* Auth Pages Shell */
+.auth-shell {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-md);
+  background:
+    radial-gradient(ellipse at top left, var(--bg-glow), transparent 40%),
+    var(--bg-app);
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 440px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--surface) 88%, transparent),
+    color-mix(in srgb, var(--surface-strong) 94%, transparent)
+  );
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+/* App Shell (Authenticated Layout) */
+.app-shell {
+  display: flex;
+  min-height: 100dvh;
+  flex-direction: column;
+}
+
+.app-topnav {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--spacing-lg);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border-subtle);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  gap: var(--spacing-md);
+}
+
+.app-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.app-sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border-subtle);
+  background: var(--surface-strong);
+  overflow-y: auto;
+  padding: var(--spacing-md) var(--spacing-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.app-sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-decoration: none;
+  transition:
+    background-color var(--transition-fast),
+    color var(--transition-fast);
+  white-space: nowrap;
+}
+
+.app-sidebar-link:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.app-sidebar-link.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.app-main {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--spacing-xl) var(--spacing-xl);
+  max-width: 100%;
+}
+
+/* State Pages (loading, empty, error) */
 .state-shell {
-  min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -18,25 +129,33 @@
   box-shadow: var(--shadow-sm);
 }
 
-/* UI Text Classes */
+/* UI Eyebrow Text */
 .ui-eyebrow {
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.05em;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
   color: var(--text-muted);
 }
 
+/* UI Button Base */
 .ui-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-md);
   font-weight: 600;
-  transition: all var(--transition-base);
+  transition:
+    background-color var(--transition-fast),
+    box-shadow var(--transition-fast),
+    transform var(--transition-fast),
+    opacity var(--transition-fast);
   cursor: pointer;
   border: none;
-  padding: 0.625rem 1rem;
+  padding: 0.5625rem 1rem;
+  font-size: 0.875rem;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .ui-button-pill {
@@ -44,8 +163,7 @@
 }
 
 .ui-button:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
 }
 
 .ui-button:active:not(:disabled) {
@@ -55,25 +173,73 @@
 .ui-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  transform: none !important;
 }
 
-/* Auth Theme Bar */
-.auth-theme-bar {
+/* Mobile Nav Drawer */
+.mobile-nav-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+  z-index: 45;
+  animation: fadeIn 0.15s ease-out both;
+}
+
+.mobile-nav-drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: min(280px, 85vw);
+  background: var(--surface-strong);
+  border-right: 1px solid var(--border-subtle);
+  z-index: 50;
   display: flex;
-  align-items: center;
-  justify-content: flex-end;
+  flex-direction: column;
   padding: var(--spacing-md);
-  border-bottom: 1px solid var(--border-subtle);
-  margin-bottom: var(--spacing-lg);
+  overflow-y: auto;
+  animation: slideInLeft 0.2s ease-out both;
 }
 
-/* Responsive Typography */
-@media (max-width: 640px) {
-  .state-shell {
-    padding: var(--spacing-sm);
+@keyframes slideInLeft {
+  from { transform: translateX(-100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* Public Header Backdrop */
+.public-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  background: color-mix(in srgb, var(--surface) 85%, transparent);
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background var(--transition-base);
+}
+
+html[data-theme="dark"] .public-header {
+  background: color-mix(in srgb, var(--surface-strong) 88%, transparent);
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+  .app-sidebar {
+    display: none;
   }
 
-  .state-card {
-    padding: var(--spacing-md) !important;
+  .app-main {
+    padding: var(--spacing-md);
+  }
+
+  .app-topnav {
+    padding: 0 var(--spacing-md);
+  }
+}
+
+@media (max-width: 480px) {
+  .auth-card {
+    border-radius: var(--radius-lg);
   }
 }

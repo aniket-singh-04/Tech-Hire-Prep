@@ -1,0 +1,184 @@
+import React, { useEffect, useState, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import Editor from '@monaco-editor/react';
+import { VscPlay, VscClose, VscRecordKeys } from 'react-icons/vsc';
+import { Button } from '../../components/ui/Button';
+import { Select } from '../../components/ui/Select';
+import { api } from '../../utils/api';
+import { io, Socket } from 'socket.io-client';
+import { Badge } from '../../components/ui/Badge';
+
+export const InterviewRoom: React.FC = () => {
+  const { sessionId } = useParams<{ sessionId: string }>();
+  const navigate = useNavigate();
+  
+  const [code, setCode] = useState('// Write your code here\n');
+  const [language, setLanguage] = useState('javascript');
+  const [output, setOutput] = useState('');
+  const [isRunning, setIsRunning] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
+  
+  const socketRef = useRef<Socket | null>(null);
+
+  useEffect(() => {
+    // 1. Fetch initial editor state
+    const fetchSession = async () => {
+      try {
+        const res = await api.get<{ data?: { code?: string; language?: string } }>(`/api/v1/editor/session/${sessionId}`);
+        if (res.data?.code) setCode(res.data.code);
+        if (res.data?.language) setLanguage(res.data.language);
+      } catch (err) {
+        console.error('Failed to load session code', err);
+      }
+    };
+    fetchSession();
+
+    // 2. Setup WebSocket for real-time collaboration
+    // A production app would connect via socket.io to sync code changes
+    const token = localStorage.getItem('token');
+    const socketUrl = import.meta.env.VITE_WS_URL || 'http://localhost:4400';
+    
+    socketRef.current = io(socketUrl, {
+      auth: { token },
+      query: { sessionId }
+    });
+
+    socketRef.current.on('connect', () => setIsConnected(true));
+    socketRef.current.on('disconnect', () => setIsConnected(false));
+    
+    socketRef.current.on('code-update', (newCode: string) => {
+      setCode(newCode);
+    });
+
+    return () => {
+      socketRef.current?.disconnect();
+    };
+  }, [sessionId]);
+
+  const handleCodeChange = (value: string | undefined) => {
+    const newCode = value || '';
+    setCode(newCode);
+    // Debounce this in a real scenario
+    socketRef.current?.emit('code-change', { sessionId, code: newCode });
+    api.post(`/api/v1/editor/session/${sessionId}/save`, { code: newCode, language }).catch(console.error);
+  };
+
+  const handleRun = async () => {
+    setIsRunning(true);
+    setOutput('Running...');
+    try {
+      const res = await api.post<{ data?: { output?: string } }>(`/api/v1/editor/session/${sessionId}/run`, { code, language });
+      setOutput(res.data?.output || 'Execution successful but no output returned.');
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } }, message?: string };
+      setOutput(error.response?.data?.message || error.message || 'Execution failed.');
+    } finally {
+      setIsRunning(false);
+    }
+  };
+
+  const handleLeave = () => {
+    api.post(`/api/v1/session/${sessionId}/leave`).catch(console.error);
+    navigate(`/sessions/${sessionId}`);
+  };
+
+  return (
+    <div className="h-screen w-full flex flex-col bg-bg">
+      {/* Header */}
+      <header className="h-14 border-b border-border bg-surface flex items-center justify-between px-4 shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className={`w-2.5 h-2.5 rounded-full ${isConnected ? 'bg-success' : 'bg-danger'}`} />
+            <h1 className="font-semibold text-text text-sm sm:text-base">Interview Room</h1>
+          </div>
+          <Badge variant="gray">{sessionId}</Badge>
+        </div>
+        
+        <div className="flex items-center gap-3">
+          <Select 
+            options={[
+              { label: 'JavaScript', value: 'javascript' },
+              { label: 'TypeScript', value: 'typescript' },
+              { label: 'Python', value: 'python' },
+              { label: 'Java', value: 'java' },
+              { label: 'C++', value: 'cpp' },
+            ]}
+            value={language}
+            onChange={setLanguage}
+            className="w-36"
+          />
+          <Button size="sm" onClick={handleRun} isLoading={isRunning} className="bg-green-600 hover:bg-green-700 text-white">
+            <VscPlay size={16} className="mr-1.5" /> Run Code
+          </Button>
+          <Button size="sm" variant="danger" onClick={handleLeave}>
+            <VscClose size={16} className="mr-1.5" /> Leave
+          </Button>
+        </div>
+      </header>
+
+      {/* Main Content Workspace */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left: Video / Chat pane */}
+        <div className="w-80 lg:w-96 border-r border-border bg-surface-muted hidden md:flex flex-col">
+          <div className="p-4 border-b border-border font-medium text-sm flex items-center gap-2 text-text">
+            <VscRecordKeys size={16} className="text-accent" /> Video Call
+          </div>
+          <div className="flex-1 p-4 flex flex-col gap-4">
+            {/* Peer Video Placeholder */}
+            <div className="flex-1 bg-surface-strong rounded-xl border border-border overflow-hidden relative shadow-sm">
+              <div className="absolute inset-0 flex items-center justify-center text-muted text-sm">
+                Waiting for peer...
+              </div>
+            </div>
+            {/* Self Video Placeholder */}
+            <div className="h-48 bg-surface-strong rounded-xl border border-border overflow-hidden relative shadow-sm">
+              <div className="absolute inset-0 flex items-center justify-center text-muted text-sm">
+                Camera off
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right: Code Editor & Output */}
+        <div className="flex-1 flex flex-col overflow-hidden relative">
+          <div className="flex-1 relative">
+            <Editor
+              height="100%"
+              language={language}
+              theme="vs-dark"
+              value={code}
+              onChange={handleCodeChange}
+              options={{
+                minimap: { enabled: false },
+                fontSize: 14,
+                fontFamily: 'JetBrains Mono, monospace',
+                lineHeight: 1.6,
+                padding: { top: 16 },
+                scrollBeyondLastLine: false,
+                smoothScrolling: true,
+                cursorBlinking: 'smooth',
+                cursorSmoothCaretAnimation: 'on',
+                formatOnPaste: true,
+              }}
+            />
+          </div>
+          
+          {/* Output Panel */}
+          {output && (
+            <div className="h-64 border-t border-border bg-[#1e1e1e] text-gray-300 font-mono text-sm flex flex-col shrink-0">
+              <div className="h-9 px-4 flex items-center justify-between border-b border-[#333] bg-[#252526]">
+                <span className="text-xs uppercase tracking-wider text-gray-400 font-semibold">Output</span>
+                <button onClick={() => setOutput('')} className="text-gray-400 hover:text-white">
+                  <VscClose size={16} />
+                </button>
+              </div>
+              <div className="flex-1 p-4 overflow-auto whitespace-pre-wrap">
+                {output}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};

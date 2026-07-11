@@ -2,48 +2,43 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
+import { authApi } from "../../services/backendApi";
+import { ApiError } from "../../utils/api";
 
 const VerifyEmail: React.FC = () => {
-  const [resending, setResending] = useState(false);
-  const [resendSuccess, setResendSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [message, setMessage] = useState("");
 
-  const handleResend = () => {
-    setResending(true);
-    // Mock API call to resend verification email
-    setTimeout(() => {
-      setResending(false);
-      setResendSuccess(true);
-    }, 1500);
+  const handleResend = async () => {
+    setLoading(true);
+    setMessage("");
+    try {
+      const payload: any = await authApi.requestEmailVerification();
+      setMessage(payload?.message || "Verification email sent.");
+      setSuccess(true);
+    } catch (err) {
+      setMessage(err instanceof ApiError ? err.message : "Failed to send verification email.");
+      setSuccess(false);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="min-h-screen bg-bg flex items-center justify-center p-6">
       <Card className="w-full max-w-md shadow-xl text-center">
         <CardHeader className="space-y-4">
-          <div className="mx-auto w-16 h-16 bg-brand-50 rounded-full flex items-center justify-center text-brand-600 mb-4">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-            </svg>
-          </div>
-          <CardTitle className="text-2xl font-bold text-fg">Check your email</CardTitle>
+          <CardTitle className="text-2xl font-bold text-fg">Verify your email</CardTitle>
           <CardDescription className="text-muted">
-            We've sent a verification link to your email address. Please click the link to verify your account.
+            If you are signed in, we can send a new verification email. Open the link from your inbox to finish verification.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6 pt-4">
-          {resendSuccess && (
-            <div className="p-3 bg-success/10 text-success text-sm rounded-md border border-success/20">
-              Verification email resent successfully!
-            </div>
-          )}
+          {message && <div className={`p-3 text-sm rounded-md border ${success ? 'bg-success/10 text-success border-success/20' : 'bg-danger/10 text-danger border-danger/20'}`}>{message}</div>}
           <div className="space-y-4">
-            <Button 
-              className="w-full" 
-              onClick={handleResend} 
-              isLoading={resending}
-              disabled={resendSuccess}
-            >
-              {resendSuccess ? "Email Sent" : "Resend Verification Email"}
+            <Button className="w-full" onClick={handleResend} isLoading={loading}>
+              Resend Verification Email
             </Button>
             <Link to="/login" className="block text-sm text-brand-600 font-medium hover:underline">
               Back to Login

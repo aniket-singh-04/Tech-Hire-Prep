@@ -5,18 +5,23 @@ interface SpinnerProps extends React.HTMLAttributes<SVGSVGElement> {
   size?: 'sm' | 'md' | 'lg' | 'xl';
 }
 
-export const Spinner: React.FC<SpinnerProps> = ({ size = 'md', className, ...props }) => {
-  const sizes = {
-    sm: 'h-4 w-4',
-    md: 'h-6 w-6',
-    lg: 'h-8 w-8',
-    xl: 'h-12 w-12',
-  };
-
-  return (
-    <VscLoading
-      className={`animate-spin text-brand-blue ${className}`}
-      {...props}
-    />
-  );
+const sizes: Record<string, string> = {
+  sm: 'h-4 w-4',
+  md: 'h-5 w-5',
+  lg: 'h-8 w-8',
+  xl: 'h-12 w-12',
 };
+
+export const Spinner: React.FC<SpinnerProps> = ({
+  size = 'md',
+  className = '',
+  ...props
+}) => (
+  <VscLoading
+    className={`animate-spin ${sizes[size] ?? sizes.md} ${className}`}
+    style={{ color: 'var(--accent)' }}
+    aria-label="Loading"
+    role="status"
+    {...props}
+  />
+);

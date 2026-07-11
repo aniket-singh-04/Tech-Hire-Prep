@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import { authApi } from "../../services/backendApi";
+import { ApiError } from "../../utils/api";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
@@ -7,6 +9,7 @@ import { Input } from "../../components/ui/Input";
 const ResetPassword: React.FC = () => {
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
+  const userId = searchParams.get("userId");
   const navigate = useNavigate();
 
   const [password, setPassword] = useState("");
@@ -14,12 +17,12 @@ const ResetPassword: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
-    if (!token) {
-      setError("Invalid or missing reset token.");
+    if (!token || !userId) {
+      setError("Invalid or missing reset token or user id.");
       return;
     }
 
@@ -34,11 +37,14 @@ const ResetPassword: React.FC = () => {
     }
 
     setLoading(true);
-    // Mock API call to reset password
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      await authApi.resetPassword({ userId, token, password });
       navigate("/login?reset=success");
-    }, 1500);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to reset password");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

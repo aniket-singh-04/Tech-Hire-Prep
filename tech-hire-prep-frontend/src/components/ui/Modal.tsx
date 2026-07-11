@@ -45,7 +45,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className={`w-full rounded-2xl bg-surface p-6 shadow-modal animate-slide-up ${className}`}>
+              <Dialog.Panel className={`w-full rounded-2xl bg-surface p-6 shadow-modal animate-slide-up ${sizes[size]} ${className || ''}`}>
                 {title && (
                   <div className="flex items-center justify-between mb-5">
                     <Dialog.Title className="text-lg font-semibold text-text">{title}</Dialog.Title>

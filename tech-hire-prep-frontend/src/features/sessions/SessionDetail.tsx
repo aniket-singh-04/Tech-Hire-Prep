@@ -8,6 +8,7 @@ import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Modal } from '../../components/ui/Modal';
 import { Spinner } from '../../components/ui/Spinner';
+import { FeedbackForm } from '../../components/feedback/FeedbackForm';
 import type { Session } from '../../types';
 import { useNavigate } from 'react-router-dom';
 
@@ -42,7 +43,7 @@ export const SessionDetail: React.FC = () => {
   const reload = () => {
     if (!sessionId) return;
     setLoading(true);
-    sessionApi.getById(sessionId).then(setSession).catch(() => {}).finally(() => setLoading(false));
+    sessionApi.getById(sessionId).then((res: any) => setSession(res?.data ?? res)).catch(() => {}).finally(() => setLoading(false));
   };
 
   useEffect(() => {
@@ -50,7 +51,7 @@ export const SessionDetail: React.FC = () => {
     // Defer to avoid synchronous setState in effect
     const timer = setTimeout(() => {
       setLoading(true);
-      sessionApi.getById(sessionId).then(setSession).catch(() => {}).finally(() => setLoading(false));
+      sessionApi.getById(sessionId).then((res: any) => setSession(res?.data ?? res)).catch(() => {}).finally(() => setLoading(false));
     }, 0);
     return () => clearTimeout(timer);
   }, [sessionId]);

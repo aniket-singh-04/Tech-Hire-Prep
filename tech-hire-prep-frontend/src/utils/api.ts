@@ -80,11 +80,12 @@ const refreshAccessToken = async () => {
   return refreshPromise;
 };
 
-export type ApiSuccessResponse<T> = {
+export interface ApiSuccessResponse<T = unknown> {
   success: boolean;
-  data: T;
-  message?: string;
-};
+  message: string;
+  data?: T;
+  meta?: Record<string, unknown>;
+}
 
 export type ApiRequestOptions = {
   method?: HttpMethod;

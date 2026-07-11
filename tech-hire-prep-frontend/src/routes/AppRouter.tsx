@@ -1,4 +1,3 @@
-import OnboardingFlow from "../features/onboarding/pages/OnboardingFlow";
 import VerificationSuccess from "../pages/common/VerificationSuccess";
 import { SessionDetail } from "../features/sessions/SessionDetail";
 import PrivacyPolicyPage from "../pages/public/PrivacyPolicyPage";
@@ -10,12 +9,12 @@ import HowItWorksPage from "../pages/public/HowItWorksPage";
 import ForgotPassword from "../pages/common/ForgotPassword";
 import SessionExpired from "../pages/common/SessionExpired";
 import ResetPassword from "../pages/common/ResetPassword";
-import { Sessions } from "../features/sessions/Sessions";
-import { History } from "../features/sessions/Sessions";
+import { Sessions, History } from "../features/sessions/Sessions";
 import LandingPage from "../pages/public/LandingPage";
 import PricingPage from "../pages/public/PricingPage";
 import ContactPage from "../pages/public/ContactPage";
 import VerifyEmail from "../pages/common/VerifyEmail";
+import VerifyOtp from "../pages/common/VerifyOtp";
 import NotFound from "../pages/not-found/NotFound";
 import { useAuth } from "../context/AuthContext";
 import Dashboard from "../pages/common/Dashboard";
@@ -25,33 +24,60 @@ import Register from "../pages/common/Register";
 import FAQPage from "../pages/public/FAQPage";
 import Login from "../pages/common/Login";
 import { type ReactNode } from "react";
+import { InterviewRoom } from "../pages/interview/InterviewRoom";
+import { AppLayout } from "../components/layout/AppLayout";
+import { Spinner } from "../components/ui/Spinner";
+
+const LoadingState = () => (
+  <div className="state-shell bg-app">
+    <div className="flex flex-col items-center gap-4 animate-fade-in">
+      <Spinner size="lg" />
+      <p className="text-muted font-medium text-sm">Loading...</p>
+    </div>
+  </div>
+);
 
 const ProtectedRoute = ({ children }: { children: ReactNode }) => {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+    return <LoadingState />;
   }
 
   if (!user) {
     return <Navigate to="/login" replace />;
   }
 
-  return children;
+  return <AppLayout>{children}</AppLayout>;
+};
+
+const ProtectedRoomRoute = ({ children }: { children: ReactNode }) => {
+  // Same as ProtectedRoute, but doesn't wrap in AppLayout (for full screen InterviewRoom)
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return <LoadingState />;
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <>{children}</>;
 };
 
 const GuestRoute = ({ children }: { children: ReactNode }) => {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+    return <LoadingState />;
   }
 
   if (user) {
     return <Navigate to="/dashboard" replace />;
   }
 
-  return children;
+  return <>{children}</>;
 };
 
 export const AppRouter = createBrowserRouter([
@@ -73,6 +99,7 @@ export const AppRouter = createBrowserRouter([
   { path: "/refund", element: <RefundPolicyPage /> },
   { path: "/verify-email", element: <VerifyEmail /> },
   { path: "/verification-success", element: <VerificationSuccess /> },
+  { path: "/verify-otp", element: <VerifyOtp /> },
   {
     path: "/forgot-password",
     element: (
@@ -103,14 +130,6 @@ export const AppRouter = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <UserProfile />
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/onboarding",
-    element: (
-      <ProtectedRoute>
-        <OnboardingFlow />
       </ProtectedRoute>
     ),
   },
@@ -152,6 +171,14 @@ export const AppRouter = createBrowserRouter([
       <ProtectedRoute>
         <SessionDetail />
       </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/room/:sessionId",
+    element: (
+      <ProtectedRoomRoute>
+        <InterviewRoom />
+      </ProtectedRoomRoute>
     ),
   },
   {

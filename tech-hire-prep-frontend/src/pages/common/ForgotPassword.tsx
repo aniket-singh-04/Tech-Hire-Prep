@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import { authApi } from "../../services/backendApi";
+import { ApiError } from "../../utils/api";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
@@ -9,16 +11,21 @@ const ForgotPassword: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
     
     setLoading(true);
-    // Mock API call to send reset link
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      const payload: any = await authApi.forgotPassword({ email });
       setSuccess(true);
-    }, 1500);
+      setEmail(payload?.maskedEmail ?? email);
+    } catch (err) {
+      setSuccess(false);
+      console.error(err instanceof ApiError ? err.message : err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
