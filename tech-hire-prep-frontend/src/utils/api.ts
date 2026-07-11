@@ -1,0 +1,178 @@
+import { buildApiUrl } from "../config/api";
+// import { mapAuthUser } from "../features/auth/user";
+
+export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+
+export type ApiErrorShape = {
+  message: string;
+  status?: number;
+  details?: unknown;
+};
+
+export class ApiError extends Error {
+  status?: number;
+  details?: unknown;
+
+  constructor(message: string, status?: number, details?: unknown) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.details = details;
+  }
+}
+
+const DEFAULT_TIMEOUT_MS = 15000;
+
+const buildUrl = (path: string) => {
+  return buildApiUrl(path);
+};
+
+const safeParseJson = async <T,>(response: Response): Promise<T | null> => {
+  try {
+    return (await response.json()) as T;
+  } catch {
+    return null;
+  }
+};
+
+const getAuthHeader = () => {
+  const token = localStorage.getItem('token');
+  if (!token) return undefined;
+  return `Bearer ${token}`;
+};
+
+let refreshPromise: Promise<string | null> | null = null;
+
+const refreshAccessToken = async () => {
+  if (refreshPromise) {
+    return refreshPromise;
+  }
+
+  refreshPromise = (async () => {
+    try {
+      const res = await fetch(buildUrl("/api/v1/auth/refresh"), {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!res.ok) {
+        localStorage.removeItem('token');
+        return null;
+      }
+
+      const data = await safeParseJson<any>(res);
+      const accessToken = data?.data?.accessToken ?? null;
+      // const user = data?.data?.user ? mapAuthUser(data.user) : null;
+
+      if (accessToken) {
+        localStorage.setItem('token', accessToken);
+      }
+
+      return accessToken;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
+};
+
+export type ApiSuccessResponse<T> = {
+  success: boolean;
+  data: T;
+  message?: string;
+};
+
+export type ApiRequestOptions = {
+  method?: HttpMethod;
+  body?: unknown;
+  headers?: Record<string, string>;
+  credentials?: RequestCredentials;
+  signal?: AbortSignal;
+  timeoutMs?: number;
+  skipRefresh?: boolean;
+};
+
+export async function apiRequest<T>(
+  path: string,
+  options: ApiRequestOptions = {},
+): Promise<T> {
+  const {
+    method = "GET",
+    body,
+    headers,
+    credentials = "include",
+    signal,
+    timeoutMs = DEFAULT_TIMEOUT_MS,
+    skipRefresh = false,
+  } = options;
+
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const authHeader = getAuthHeader();
+    let res = await fetch(buildUrl(path), {
+      method,
+      credentials,
+      headers: {
+        "Content-Type": "application/json",
+        ...(authHeader ? { Authorization: authHeader } : {}),
+        ...headers,
+      },
+      body: body ? JSON.stringify(body) : undefined,
+      signal: signal ?? controller.signal,
+    });
+
+    if (res.status === 401 && !skipRefresh && path !== "/api/v1/auth/refresh") {
+      const nextToken = await refreshAccessToken();
+
+      if (nextToken) {
+        res = await fetch(buildUrl(path), {
+          method,
+          credentials,
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${nextToken}`,
+            ...headers,
+          },
+          body: body ? JSON.stringify(body) : undefined,
+          signal: signal ?? controller.signal,
+        });
+      }
+    }
+
+    const data = await safeParseJson<T & ApiErrorShape>(res);
+
+    if (!res.ok) {
+      const message =
+        data?.message ||
+        (res.status === 401
+          ? "Unauthorized"
+          : res.status === 403
+            ? "Forbidden"
+            : "Request failed");
+      throw new ApiError(message, res.status, data);
+    }
+
+    return (data ?? ({} as T)) as T;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
+
+export const api = {
+  get: <T,>(path: string, options?: ApiRequestOptions) =>
+    apiRequest<T>(path, { ...options, method: "GET" }),
+  post: <T,>(path: string, body?: unknown, options?: ApiRequestOptions) =>
+    apiRequest<T>(path, { ...options, method: "POST", body }),
+  put: <T,>(path: string, body?: unknown, options?: ApiRequestOptions) =>
+    apiRequest<T>(path, { ...options, method: "PUT", body }),
+  patch: <T,>(path: string, body?: unknown, options?: ApiRequestOptions) =>
+    apiRequest<T>(path, { ...options, method: "PATCH", body }),
+  delete: <T,>(path: string, options?: ApiRequestOptions) =>
+    apiRequest<T>(path, { ...options, method: "DELETE" }),
+};

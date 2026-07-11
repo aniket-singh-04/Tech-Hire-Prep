@@ -1,0 +1,79 @@
+/* =========================================
+   Theme-Specific Component Styles
+========================================= */
+
+/* State Components */
+.state-shell {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-md);
+}
+
+.state-card {
+  background: var(--surface-strong);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+/* UI Text Classes */
+.ui-eyebrow {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.ui-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  transition: all var(--transition-base);
+  cursor: pointer;
+  border: none;
+  padding: 0.625rem 1rem;
+}
+
+.ui-button-pill {
+  border-radius: 999px;
+}
+
+.ui-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.ui-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.ui-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Auth Theme Bar */
+.auth-theme-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: var(--spacing-md);
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: var(--spacing-lg);
+}
+
+/* Responsive Typography */
+@media (max-width: 640px) {
+  .state-shell {
+    padding: var(--spacing-sm);
+  }
+
+  .state-card {
+    padding: var(--spacing-md) !important;
+  }
+}

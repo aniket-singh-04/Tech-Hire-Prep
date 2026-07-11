@@ -1,0 +1,135 @@
+/* =========================================
+   CSS Custom Properties - Typography Utilities
+========================================= */
+
+.text-primary {
+  color: var(--text-primary);
+}
+
+.text-secondary {
+  color: var(--text-secondary);
+}
+
+.text-muted {
+  color: var(--text-muted);
+}
+
+.text-inverse {
+  color: var(--text-inverse);
+}
+
+/* =========================================
+   CSS Custom Properties - Background Utilities
+========================================= */
+
+.bg-primary {
+  background-color: var(--bg-app);
+}
+
+.bg-surface {
+  background-color: var(--surface);
+}
+
+.bg-surface-strong {
+  background-color: var(--surface-strong);
+}
+
+.bg-surface-muted {
+  background-color: var(--surface-muted);
+}
+
+.bg-surface-soft {
+  background-color: var(--surface-soft);
+}
+
+/* =========================================
+   CSS Custom Properties - Border Utilities
+========================================= */
+
+.border-subtle {
+  border-color: var(--border-subtle);
+}
+
+.border-strong {
+  border-color: var(--border-strong);
+}
+
+.border {
+  border-color: var(--border);
+}
+
+/* =========================================
+   CSS Custom Properties - Shadow Utilities
+========================================= */
+
+.shadow-sm {
+  box-shadow: var(--shadow-sm);
+}
+
+.shadow-md {
+  box-shadow: var(--shadow-md);
+}
+
+.shadow-lg {
+  box-shadow: var(--shadow-lg);
+}
+
+.shadow-glow {
+  box-shadow: var(--shadow-glow);
+}
+
+/* =========================================
+   CSS Custom Properties - Spacing Utilities
+========================================= */
+
+.gap-xs {
+  gap: var(--spacing-xs);
+}
+
+.gap-sm {
+  gap: var(--spacing-sm);
+}
+
+.gap-md {
+  gap: var(--spacing-md);
+}
+
+.gap-lg {
+  gap: var(--spacing-lg);
+}
+
+.gap-xl {
+  gap: var(--spacing-xl);
+}
+
+.p-xs {
+  padding: var(--spacing-xs);
+}
+
+.p-sm {
+  padding: var(--spacing-sm);
+}
+
+.p-md {
+  padding: var(--spacing-md);
+}
+
+.p-lg {
+  padding: var(--spacing-lg);
+}
+
+.p-xl {
+  padding: var(--spacing-xl);
+}
+
+.rounded-sm {
+  border-radius: var(--radius-sm);
+}
+
+.rounded-md {
+  border-radius: var(--radius-md);
+}
+
+.rounded-lg {
+  border-radius: var(--radius-lg);
+}
