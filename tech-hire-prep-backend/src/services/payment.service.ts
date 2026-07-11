@@ -5,10 +5,11 @@ import { PAYMENT_CONSTANTS } from "../constants/payment.constants.ts";
 import { PaymentRepository } from "../repositories/payment.repository.ts";
 import { Currency, PaymentGateway, PaymentStatus } from "../types/payment.types.ts";
 import { AppError } from "../utils/appError.ts";
+import { ENV } from "../config/envConfig.ts";
 
 const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID || "",
-  key_secret: process.env.RAZORPAY_KEY_SECRET || "",
+  key_id: ENV.RAZORPAY_KEY_ID || "",
+  key_secret: ENV.RAZORPAY_KEY_SECRET || "",
 });
 
 export const createOrderService = async (
