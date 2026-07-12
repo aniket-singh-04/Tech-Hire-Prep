@@ -145,11 +145,11 @@ export const Matchmaking: React.FC = () => {
               )}
             </div>
 
-            {profile?.skillTags && profile.skillTags.length > 0 && (
+            {profile?.skills && profile.skills.length > 0 && (
               <div>
                 <p className="text-sm font-medium text-muted mb-2">Your Skills</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {profile.skillTags.map(tag => <Badge key={tag} variant="blue">{tag}</Badge>)}
+                  {profile.skills.map(tag => <Badge key={tag} variant="blue">{tag}</Badge>)}
                 </div>
               </div>
             )}

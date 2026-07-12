@@ -3,7 +3,7 @@ import { SessionDetail } from "../features/sessions/SessionDetail";
 import PrivacyPolicyPage from "../pages/public/PrivacyPolicyPage";
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import RefundPolicyPage from "../pages/public/RefundPolicyPage";
-import UserProfile from "../features/profile/pages/UserProfile";
+import UserProfile from "../features/profile/UserProfile";
 import { Matchmaking } from "../features/sessions/Matchmaking";
 import HowItWorksPage from "../pages/public/HowItWorksPage";
 import ForgotPassword from "../pages/common/ForgotPassword";

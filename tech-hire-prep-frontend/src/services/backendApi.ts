@@ -41,20 +41,11 @@ export const authApi = {
 
 export const profileApi = {
   getPublicProfile: (username: string) =>
-    api.get<any>(`/api/v1/user/${username}`).then(unwrapData),
+    api.get<any>(`/api/v1/user/profile/${username}`).then(unwrapData),
   getMe: () => api.get<any>("/api/v1/user/me").then(unwrapData),
   updateMe: (
     payload: Partial<
-      Pick<
-        Profile,
-        | "headline"
-        | "bio"
-        | "targetRole"
-        | "skillTags"
-        | "experienceLevel"
-        | "college"
-        | "graduationYear"
-      >
+      Pick<Profile, | "headline" | "bio" | "targetRole" | "skills" | "experienceLevel" | "college" | "branch" | "graduationYear" | "socialLinks" | "preferences">
     >,
   ) => api.patch<any>("/api/v1/user/me", payload).then(unwrapData),
   createAvatarUploadUrl: (payload: { fileName: string; contentType: string }) =>

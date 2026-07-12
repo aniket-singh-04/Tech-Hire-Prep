@@ -109,7 +109,7 @@
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: var(--spacing-xl) var(--spacing-xl);
+  padding: var(--spacing-md) var(--spacing-md);
   max-width: 100%;
 }
 

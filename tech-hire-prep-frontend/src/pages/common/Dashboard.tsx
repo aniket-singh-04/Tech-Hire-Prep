@@ -51,7 +51,6 @@ const Dashboard: React.FC = () => {
         <div className="absolute inset-0 opacity-30 bg-[radial-gradient(circle_at_top_right,_rgba(56,189,248,0.22),_transparent_35%),radial-gradient(circle_at_bottom_left,_rgba(99,102,241,0.22),_transparent_30%)]" />
         <div className="relative flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
           <div className="space-y-2 max-w-2xl">
-            <p className="text-sm uppercase tracking-[0.3em] text-sky-200/80">Interview dashboard</p>
             <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'}, {user?.name?.split(' ')[0] ?? 'there'}</h1>
             <p className="text-sky-100/80 max-w-xl">Track upcoming interviews, jump back into a live room, and keep your practice flow moving.</p>
           </div>
@@ -137,18 +136,18 @@ const Dashboard: React.FC = () => {
               <CardTitle className="text-base">Next step</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <button onClick={() => navigate('/match')} className="w-full text-left p-4 rounded-2xl bg-slate-950 text-white hover:opacity-95 transition-opacity flex items-center gap-4">
+              <button onClick={() => navigate('/match')} className="w-full text-left p-4 rounded-2xl border border-border bg-surface-strong text-primary shadow-sm hover:bg-surface-hover transition-colors flex items-center gap-4">
                 <FiMessageSquare size={20} />
                 <div>
                   <p className="font-semibold text-sm">Find a practice match</p>
-                  <p className="text-xs text-white/75">Get paired for a mock interview.</p>
+                  <p className="text-xs text-muted">Get paired for a mock interview.</p>
                 </div>
               </button>
-              <button onClick={() => navigate('/profile')} className="w-full text-left p-4 rounded-2xl bg-slate-100 text-slate-950 hover:bg-slate-200 transition-colors flex items-center gap-4">
+              <button onClick={() => navigate('/profile')} className="w-full text-left p-4 rounded-2xl border border-border bg-surface text-primary shadow-sm hover:bg-surface-hover transition-colors flex items-center gap-4">
                 <FiUsers size={20} />
                 <div>
                   <p className="font-semibold text-sm">Update your profile</p>
-                  <p className="text-xs text-slate-600">Keep your preferences current.</p>
+                  <p className="text-xs text-muted">Keep your preferences current.</p>
                 </div>
               </button>
             </CardContent>

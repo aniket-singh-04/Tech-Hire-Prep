@@ -3,15 +3,10 @@ import { Link, NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { ThemeToggle } from "../ui/ThemeToggle";
 import { Avatar } from "../ui/Avatar";
-import { FiMenu, FiX, FiLogOut, FiHome, FiCalendar, FiClock, FiUser, FiMessageSquare } from "react-icons/fi";
+import { FiMenu, FiX, FiLogOut } from "react-icons/fi";
+import { navLinks } from "../../constants/icon";
 
-const navLinks = [
-  { path: "/dashboard", label: "Dashboard", icon: FiHome },
-  { path: "/match", label: "Practice", icon: FiMessageSquare },
-  { path: "/sessions", label: "Sessions", icon: FiCalendar },
-  { path: "/history", label: "History", icon: FiClock },
-  { path: "/profile", label: "Profile", icon: FiUser },
-];
+
 
 export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, logout } = useAuth();
@@ -47,10 +42,20 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
           <div className="flex-1 py-4 space-y-1">
             {navLinks.map((link) => {
               const Icon = link.icon;
-              const isActive = location.pathname === link.path || location.pathname.startsWith(`${link.path}/`);
+              const isActive =
+                location.pathname === link.path ||
+                location.pathname.startsWith(`${link.path}/`);
+
               return (
-                <NavLink key={link.path} to={link.path} className={`app-sidebar-link ${isActive ? "active" : ""}`}>
-                  <Icon size={18} />
+                <NavLink
+                  key={link.path}
+                  to={link.path}
+                  className={`app-sidebar-link ${isActive ? "active" : ""}`}
+                >
+                  <Icon
+                    size={18}
+                    color={isActive ? "#ffffff" : link.color}
+                  />
                   <span>{link.label}</span>
                 </NavLink>
               );

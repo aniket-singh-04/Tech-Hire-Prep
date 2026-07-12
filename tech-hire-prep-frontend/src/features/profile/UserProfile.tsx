@@ -1,31 +1,27 @@
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '../../components/ui/Card';
+import { TargetRole, ExperienceLevel, WeekDay } from '../../types';
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../../context/AuthContext';
-import { profileApi } from '../../../services/backendApi';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '../../../components/ui/Card';
-import { Button } from '../../../components/ui/Button';
-import { Input } from '../../../components/ui/Input';
-import { Textarea } from '../../../components/ui/Textarea';
-import { Avatar } from '../../../components/ui/Avatar';
-import { Spinner } from '../../../components/ui/Spinner';
-import { Badge } from '../../../components/ui/Badge';
-import type { Profile } from '../../../types';
+import { useAuth } from '../../context/AuthContext';
+import { profileApi } from '../../services/backendApi';
+import { Button } from '../../components/ui/Button';
+import { Input } from '../../components/ui/Input';
+import { Textarea } from '../../components/ui/Textarea';
+import { Avatar } from '../../components/ui/Avatar';
+import { Spinner } from '../../components/ui/Spinner';
+import { Badge } from '../../components/ui/Badge';
+import type { IAvailabilitySlot, ISocialLinks, Profile } from '../../types';
+import { Select } from '../../components/ui/Select';
+import { BADGE_LIST, STATS, tabs, type Tab } from '../../constants/icon';
 
-type Tab = 'personal' | 'skills' | 'availability' | 'preferences' | 'stats' | 'reviews' | 'badges' | 'account' | 'security';
 
-const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const DAYS = Object.values(WeekDay);
+const ROLES = Object.values(TargetRole);
+// const LANGUAGES = Object.values(PreferredLanguage);
+const EXPERIENCE_LEVELS = Object.values(ExperienceLevel);
+// const INTERVIEW_TYPES = ['Technical', 'Behavioral', 'System Design', 'Product Sense', 'Data Structures'];
+// const FOCUS_AREAS = ['Algorithms', 'System Design', 'Frontend', 'Backend', 'Machine Learning', 'DevOps'];
 
-const INTERVIEW_TYPES = ['Technical', 'Behavioral', 'System Design', 'Product Sense', 'Data Structures'];
-const LANGUAGES = ['Python', 'JavaScript', 'TypeScript', 'Java', 'C++', 'Go', 'Rust'];
-const FOCUS_AREAS = ['Algorithms', 'System Design', 'Frontend', 'Backend', 'Machine Learning', 'DevOps'];
-
-const BADGE_LIST = [
-  { id: 'first_interview', icon: '🎯', name: 'First Interview', desc: 'Completed your first mock interview', earned: true },
-  { id: 'five_sessions', icon: '🔥', name: 'On Fire', desc: '5 sessions completed', earned: true },
-  { id: 'perfect_score', icon: '⭐', name: 'Perfect Score', desc: 'Received a 10/10 scorecard', earned: false },
-  { id: 'top_interviewer', icon: '🧑‍💻', name: 'Top Interviewer', desc: 'Highly rated as interviewer', earned: false },
-  { id: 'consistency', icon: '📅', name: 'Consistent', desc: '7-day streak', earned: false },
-];
 
 export const UserProfile: React.FC = () => {
   const { user } = useAuth();
@@ -36,18 +32,19 @@ export const UserProfile: React.FC = () => {
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   // Form states
+  const [name, setName] = useState(user?.name);
+  const [userName, setUserName] = useState("");
   const [headline, setHeadline] = useState('');
   const [bio, setBio] = useState('');
-  const [targetRole, setTargetRole] = useState('');
+  const [targetRole, setTargetRole] = useState<TargetRole>(TargetRole.OTHER);
   const [skillTags, setSkillTags] = useState('');
-  const [experienceLevel, setExperienceLevel] = useState(1);
-  const [linkedinUrl, setLinkedinUrl] = useState('');
-  const [githubUrl, setGithubUrl] = useState('');
+  const [experienceLevel, setExperienceLevel] = useState<ExperienceLevel>(ExperienceLevel.BEGINNER);
+  const [socialLinks, setSocialLinks] = useState<ISocialLinks>({});
   const [college, setCollege] = useState('');
-  const [selectedDays, setSelectedDays] = useState<string[]>([]);
-  const [interviewTypes, setInterviewTypes] = useState<string[]>([]);
-  const [preferredLanguages, setPreferredLanguages] = useState<string[]>([]);
-  const [focusAreas, setFocusAreas] = useState<string[]>([]);
+  const [selectedDays, setSelectedDays] = useState<IAvailabilitySlot[]>([]);
+  // const [interviewTypes, setInterviewTypes] = useState<string[]>([]);
+  // const [preferredLanguages, setPreferredLanguages] = useState<string[]>([]);
+  // const [focusAreas, setFocusAreas] = useState<string[]>([]);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -56,19 +53,17 @@ export const UserProfile: React.FC = () => {
     const fetchProfile = async () => {
       try {
         const data = await profileApi.getMe();
+        console.log(data)
         const profileData = data as unknown as Profile;
         setHeadline(profileData.headline || '');
+        setUserName(profileData.username || " ");
         setBio(profileData.bio || '');
-        setTargetRole(profileData.targetRole || '');
-        setSkillTags(profileData.skillTags?.join(', ') || '');
-        setExperienceLevel(profileData.experienceLevel || 1);
+        setTargetRole(profileData.targetRole || TargetRole.FRONTEND);
+        setSkillTags(profileData.skills?.join(', ') || '');
+        setExperienceLevel(profileData.experienceLevel || ExperienceLevel.BEGINNER);
         setCollege(profileData.college || '');
-        setLinkedinUrl(profileData.verification?.linkedinUrl || '');
-        setGithubUrl(profileData.verification?.githubUrl || '');
-        setSelectedDays(profileData.availability?.map(a => a.day) || []);
-        setInterviewTypes(profileData.preferences?.interviewTypes || []);
-        setPreferredLanguages(profileData.preferences?.preferredLanguages || []);
-        setFocusAreas(profileData.preferences?.focusAreas || []);
+        setSelectedDays(profileData.availability || []);
+        setSocialLinks(profileData.socialLinks || {});
       } catch (err) {
         console.error('Failed to load profile', err);
       } finally {
@@ -86,7 +81,7 @@ export const UserProfile: React.FC = () => {
   const handleSavePersonal = async () => {
     setIsSaving(true);
     try {
-      await profileApi.updateMe({ headline, bio, targetRole, college, skillTags: skillTags.split(',').map(s => s.trim()).filter(Boolean) });
+      await profileApi.updateMe({ headline, bio, targetRole, college, skills: skillTags.split(',').map(s => s.trim()).filter(Boolean), experienceLevel , socialLinks });
       showSuccess();
     } catch (error) {
       console.error(error);
@@ -98,9 +93,7 @@ export const UserProfile: React.FC = () => {
   const handleSaveAvailability = async () => {
     setIsSaving(true);
     try {
-      await profileApi.updateAvailability(
-        selectedDays.map(day => ({ day, start: '09:00', end: '17:00', timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }))
-      );
+      await profileApi.updateAvailability(selectedDays);
       showSuccess();
     } catch (error) {
       console.error(error);
@@ -109,38 +102,35 @@ export const UserProfile: React.FC = () => {
     }
   };
 
-  const handleSavePreferences = async () => {
-    setIsSaving(true);
-    try {
-      // API endpoint for preferences is not defined in backend schema
-      await new Promise(resolve => setTimeout(resolve, 500));
-      showSuccess();
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setIsSaving(false);
-    }
+  const handleSocialChange = (field: keyof ISocialLinks, value: string) => {
+    setSocialLinks(prev => ({
+      ...prev,
+      [field]: value,
+    }));
   };
 
-  const toggle = (val: string, list: string[], setter: (v: string[]) => void) => {
-    setter(list.includes(val) ? list.filter(v => v !== val) : [...list, val]);
-  };
+  // const handleSavePreferences = async () => {
+  //   setIsSaving(true);
+  //   try {
+  //     // API endpoint for preferences is not defined in backend schema
+  //     await new Promise(resolve => setTimeout(resolve, 500));
+  //     showSuccess();
+  //   } catch (error) {
+  //     console.error(error);
+  //   } finally {
+  //     setIsSaving(false);
+  //   }
+  // };
+
+  // const toggle = (val: string, list: string[], setter: (v: string[]) => void) => {
+  //   setter(list.includes(val) ? list.filter(v => v !== val) : [...list, val]);
+  // };
 
   if (loading) {
     return <div className="flex h-64 items-center justify-center"><Spinner size="lg" /></div>;
   }
 
-  const tabs: { key: Tab; label: string; icon: string }[] = [
-    { key: 'personal', label: 'Personal Info', icon: '👤' },
-    { key: 'skills', label: 'Skills', icon: '🛠' },
-    { key: 'availability', label: 'Availability', icon: '📅' },
-    { key: 'preferences', label: 'Preferences', icon: '⚙️' },
-    { key: 'stats', label: 'Statistics', icon: '📊' },
-    { key: 'reviews', label: 'Reviews', icon: '⭐' },
-    { key: 'badges', label: 'Badges', icon: '🏅' },
-    { key: 'account', label: 'Account Settings', icon: '🔧' },
-    { key: 'security', label: 'Security', icon: '🔒' },
-  ];
+
 
   return (
     <div className="flex flex-col md:flex-row gap-6 animate-fade-in">
@@ -155,23 +145,30 @@ export const UserProfile: React.FC = () => {
               </div>
             </div>
             <h3 className="mt-1 font-semibold text-text text-center">{user?.name}</h3>
-            <p className="text-xs text-muted text-center">{user?.email}</p>
+            <p className="text-xs text-muted text-center">{userName ?? user?.email}</p>
             {headline && <p className="text-xs text-primary text-center font-medium">{headline}</p>}
           </div>
 
-          {tabs.map(t => (
-            <button
-              key={t.key}
-              onClick={() => setActiveTab(t.key)}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors text-left w-full ${
-                activeTab === t.key
-                  ? 'bg-brand-100 text-brand-700'
-                  : 'text-muted hover:bg-surface-hover hover:text-text'
-              } ${t.key === 'security' ? 'text-danger hover:text-danger hover:bg-danger/10 mt-2 border-t border-border pt-3' : ''}`}
-            >
-              <span>{t.icon}</span> {t.label}
-            </button>
-          ))}
+          {tabs.map((t) => {
+            const Icon = t.icon;
+
+            return (
+              <button
+                key={t.key}
+                onClick={() => setActiveTab(t.key)}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors text-left w-full ${activeTab === t.key
+                  ? "bg-brand-100 text-brand-700"
+                  : "text-muted hover:bg-surface-hover hover:text-text"
+                  } ${t.key === "security"
+                    ? "text-danger hover:text-danger hover:bg-danger/10 mt-2 border-t border-border pt-3"
+                    : ""
+                  }`}
+              >
+                <Icon size={18} color={t.color} />
+                {t.label}
+              </button>
+            );
+          })}
         </CardContent>
       </Card>
 
@@ -197,9 +194,69 @@ export const UserProfile: React.FC = () => {
                 <label className="block text-sm font-medium text-text mb-1">Bio</label>
                 <Textarea placeholder="Tell us a little about yourself" value={bio} onChange={e => setBio(e.target.value)} />
               </div>
-              <Input label="College / University" placeholder="e.g. IIT Bombay" value={college} onChange={e => setCollege(e.target.value)} />
-              <Input label="LinkedIn URL" placeholder="https://linkedin.com/in/..." value={linkedinUrl} onChange={e => setLinkedinUrl(e.target.value)} />
-              <Input label="GitHub URL" placeholder="https://github.com/..." value={githubUrl} onChange={e => setGithubUrl(e.target.value)} />
+
+              <Input
+                label="LinkedIn URL"
+                placeholder="https://linkedin.com/in/..."
+                value={socialLinks.linkedin || ""}
+                onChange={e => handleSocialChange("linkedin", e.target.value)}
+              />
+
+              <Input
+                label="Github URL"
+                placeholder="https://github.com/..."
+                value={socialLinks.github || ""}
+                onChange={e => handleSocialChange("github", e.target.value)}
+              />
+
+              <Input
+                label="Portfolio URL"
+                placeholder="https://yourportfolio.com"
+                value={socialLinks.portfolio || ""}
+                onChange={e => handleSocialChange("portfolio", e.target.value)}
+              />
+
+              <Input
+                label="Leetcode URL"
+                placeholder="https://leetcode.com/..."
+                value={socialLinks.leetcode || ""}
+                onChange={e => handleSocialChange("leetcode", e.target.value)}
+              />
+
+              <Input
+                label="Codeforces URL"
+                placeholder="https://codeforces.com/..."
+                value={socialLinks.codeforces || ""}
+                onChange={e => handleSocialChange("codeforces", e.target.value)}
+              />
+
+              <Input
+                label="Codechef URL"
+                placeholder="https://codechef.com/..."
+                value={socialLinks.codechef || ""}
+                onChange={e => handleSocialChange("codechef", e.target.value)}
+              />
+
+              <Input
+                label="GFG URL"
+                placeholder="https://geeksforgeeks.org/..."
+                value={socialLinks.geeksforgeeks || ""}
+                onChange={e => handleSocialChange("geeksforgeeks", e.target.value)}
+              />
+
+              <Input
+                label="HackerEarth URL"
+                placeholder="https://hackerearth.com/..."
+                value={socialLinks.hackerEarth || ""}
+                onChange={e => handleSocialChange("hackerEarth", e.target.value)}
+              />
+
+              <Input
+                label="HackerRank URL"
+                placeholder="https://hackerrank.com/..."
+                value={socialLinks.hackerRank || ""}
+                onChange={e => handleSocialChange("hackerRank", e.target.value)}
+              />
             </CardContent>
             <CardFooter>
               <Button onClick={handleSavePersonal} isLoading={isSaving}>Save Changes</Button>
@@ -215,16 +272,9 @@ export const UserProfile: React.FC = () => {
               <CardDescription>What roles and skills are you targeting?</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <Input label="Target Role" placeholder="e.g. Software Engineer" value={targetRole} onChange={e => setTargetRole(e.target.value)} />
+              <Select label="Target Role" options={ROLES.map(r => ({ label: r, value: r }))} value={targetRole} onChange={setTargetRole} />
               <Input label="Skill Tags (comma separated)" placeholder="React, Node.js, AWS" value={skillTags} onChange={e => setSkillTags(e.target.value)} />
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-text">Experience Level (1-5)</label>
-                <div className="flex items-center gap-4">
-                  <input type="range" min="1" max="5" value={experienceLevel} onChange={e => setExperienceLevel(Number(e.target.value))} className="flex-1 accent-brand-500" />
-                  <span className="font-bold text-fg w-4 text-center">{experienceLevel}</span>
-                </div>
-                <p className="text-xs text-muted">1 = Beginner · 5 = Expert</p>
-              </div>
+              <Select label="Experience Level" options={EXPERIENCE_LEVELS.map(r => ({ label: r, value: r }))} value={experienceLevel} onChange={setExperienceLevel} />
             </CardContent>
             <CardFooter>
               <Button onClick={handleSavePersonal} isLoading={isSaving}>Save Changes</Button>
@@ -245,12 +295,17 @@ export const UserProfile: React.FC = () => {
                   <button
                     key={day}
                     type="button"
-                    onClick={() => toggle(day, selectedDays, setSelectedDays)}
-                    className={`px-4 py-2 rounded-full text-sm font-semibold border transition-colors ${
-                      selectedDays.includes(day)
-                        ? 'bg-brand-500 text-white border-brand-500'
-                        : 'bg-surface text-muted border-border hover:border-brand-300'
-                    }`}
+                    onClick={() => {
+                      if (selectedDays.some(s => s.day === day)) {
+                        setSelectedDays(selectedDays.filter(s => s.day !== day));
+                      } else {
+                        setSelectedDays([...selectedDays, { day, startTime: '09:00', endTime: '17:00' }]);
+                      }
+                    }}
+                    className={`px-4 py-2 rounded-full text-sm font-semibold border transition-colors ${selectedDays.some(s => s.day === day)
+                      ? 'bg-accent text-white border-accent'
+                      : 'bg-surface text-primary border-border hover:border-accent hover:bg-surface-hover'
+                      }`}
                   >
                     {day}
                   </button>
@@ -265,7 +320,7 @@ export const UserProfile: React.FC = () => {
         )}
 
         {/* ─── Preferences ─── */}
-        {activeTab === 'preferences' && (
+        {/* {activeTab === 'preferences' && (
           <div className="space-y-6">
             <Card>
               <CardHeader><CardTitle>Interview Types</CardTitle><CardDescription>What types of interviews do you want to practice?</CardDescription></CardHeader>
@@ -273,7 +328,7 @@ export const UserProfile: React.FC = () => {
                 <div className="flex flex-wrap gap-2">
                   {INTERVIEW_TYPES.map(t => (
                     <button key={t} type="button" onClick={() => toggle(t, interviewTypes, setInterviewTypes)}
-                      className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${interviewTypes.includes(t) ? 'bg-brand-500 text-white border-brand-500' : 'bg-surface text-muted border-border hover:border-brand-300'}`}>
+                      className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${interviewTypes.includes(t) ? 'bg-accent text-white border-accent' : 'bg-surface text-primary border-border hover:border-accent hover:bg-surface-hover'}`}>
                       {t}
                     </button>
                   ))}
@@ -310,7 +365,7 @@ export const UserProfile: React.FC = () => {
               </CardFooter>
             </Card>
           </div>
-        )}
+        )} */}
 
         {/* ─── Interview Statistics ─── */}
         {activeTab === 'stats' && (
@@ -321,20 +376,23 @@ export const UserProfile: React.FC = () => {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                {[
-                  { label: 'Sessions Completed', value: '12', icon: '🎯' },
-                  { label: 'As Candidate', value: '7', icon: '🧑‍💼' },
-                  { label: 'As Interviewer', value: '5', icon: '🧑‍💻' },
-                  { label: 'Average Score', value: '7.8 / 10', icon: '⭐' },
-                  { label: 'Points Earned', value: '1,240', icon: '💰' },
-                  { label: 'Current Streak', value: '3 days', icon: '🔥' },
-                ].map(stat => (
-                  <div key={stat.label} className="bg-surface rounded-xl p-4 text-center border border-border">
-                    <div className="text-2xl mb-2">{stat.icon}</div>
-                    <p className="font-bold text-xl text-fg">{stat.value}</p>
-                    <p className="text-xs text-muted mt-0.5">{stat.label}</p>
-                  </div>
-                ))}
+                {STATS.map((stat) => {
+                  const Icon = stat.icon;
+
+                  return (
+                    <div
+                      key={stat.label}
+                      className="bg-surface rounded-xl p-4 text-center border border-border"
+                    >
+                      <div className="flex justify-center mb-2">
+                        <Icon size={28} color={stat.color} />
+                      </div>
+
+                      <p className="font-bold text-xl text-fg">{stat.value}</p>
+                      <p className="text-xs text-muted mt-0.5">{stat.label}</p>
+                    </div>
+                  );
+                })}
               </div>
               <div className="mt-6">
                 <Button variant="outline" className="w-full" onClick={() => navigate('/history')}>View Full History</Button>
@@ -367,7 +425,7 @@ export const UserProfile: React.FC = () => {
                     <p className="text-sm text-muted">{r.text}</p>
                   </div>
                 ))}
-                  <div className="text-center py-10 text-muted text-sm">No reviews yet. Complete sessions to receive peer feedback.</div>
+                <div className="text-center py-10 text-muted text-sm">No reviews yet. Complete sessions to receive peer feedback.</div>
               </div>
             </CardContent>
           </Card>
@@ -382,16 +440,35 @@ export const UserProfile: React.FC = () => {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {BADGE_LIST.map(badge => (
-                  <div key={badge.id} className={`p-4 rounded-xl border flex items-center gap-4 transition-all ${badge.earned ? 'border-brand-200 bg-brand-50' : 'border-border bg-surface opacity-50 grayscale'}`}>
-                    <div className="text-3xl">{badge.icon}</div>
-                    <div>
-                      <p className="font-semibold text-sm text-text">{badge.name}</p>
-                      <p className="text-xs text-muted mt-0.5">{badge.desc}</p>
-                      <Badge variant={badge.earned ? 'green' : 'gray'} className="mt-1 text-xs">{badge.earned ? 'Earned' : 'Locked'}</Badge>
+                {BADGE_LIST.map((badge) => {
+                  const Icon = badge.icon;
+
+                  return (
+                    <div
+                      key={badge.id}
+                      className={`p-4 rounded-xl border flex items-center gap-4 transition-all ${badge.earned
+                        ? "border-brand-200 bg-brand-50"
+                        : "border-border bg-surface opacity-50 grayscale"
+                        }`}
+                    >
+                      <div className="text-3xl">
+                        <Icon size={24} color={badge.color} />
+                      </div>
+
+                      <div>
+                        <p className="font-semibold text-sm text-text">{badge.name}</p>
+                        <p className="text-xs text-muted mt-0.5">{badge.desc}</p>
+
+                        <Badge
+                          variant={badge.earned ? "green" : "gray"}
+                          className="mt-1 text-xs"
+                        >
+                          {badge.earned ? "Earned" : "Locked"}
+                        </Badge>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </CardContent>
           </Card>
@@ -418,12 +495,13 @@ export const UserProfile: React.FC = () => {
                 <CardTitle>Account Details</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <Input label="Display Name" value={user?.name || ''} />
+                <Input label="Display Name" value={name} onChange={e => setName(e.target.value)} disabled />
                 <Input label="Email Address" value={user?.email || ''} disabled />
                 <p className="text-xs text-muted">Email address cannot be changed.</p>
+                <p className="text-xs text-muted">Currently name is also not be changable.</p>
               </CardContent>
               <CardFooter>
-                <Button isLoading={isSaving}>Save Account Details</Button>
+                <Button isLoading={isSaving} className="disabled:cursor-not-allowed disabled:opacity-50" disabled>Save Account Details</Button>
               </CardFooter>
             </Card>
           </div>
