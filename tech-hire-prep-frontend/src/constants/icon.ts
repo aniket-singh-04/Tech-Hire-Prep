@@ -1,4 +1,4 @@
-import { FaBullseye, FaFire, FaStar, FaUserTie, FaCalendarCheck, FaLaptopCode, FaCoins, FaUser, FaTools, FaCalendarAlt, FaCog, FaChartBar, FaMedal, FaWrench, FaLock, } from "react-icons/fa";
+import { FaBullseye, FaFire, FaStar, FaUserTie, FaCalendarCheck, FaLaptopCode, FaCoins, FaUser, FaTools, FaCalendarAlt, FaChartBar, FaMedal, FaWrench, FaLock, } from "react-icons/fa";
 import { FiCalendar, FiClock, FiHome, FiMessageSquare, FiUser } from "react-icons/fi";
 import type { IconType } from "react-icons/lib";
 

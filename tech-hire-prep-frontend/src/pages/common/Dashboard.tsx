@@ -47,8 +47,8 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-fade-in pb-8">
-      <section className="rounded-3xl bg-gradient-to-br from-slate-950 via-slate-900 to-sky-900 text-white p-6 md:p-8 shadow-xl overflow-hidden relative">
-        <div className="absolute inset-0 opacity-30 bg-[radial-gradient(circle_at_top_right,_rgba(56,189,248,0.22),_transparent_35%),radial-gradient(circle_at_bottom_left,_rgba(99,102,241,0.22),_transparent_30%)]" />
+      <section className="rounded-3xl bg-linear-to-br from-slate-950 via-slate-900 to-sky-900 text-white p-6 md:p-8 shadow-xl overflow-hidden relative">
+        <div className="absolute inset-0 opacity-30 bg-[radial-linear(circle_at_top_right,rgba(56,189,248,0.22),transparent_35%),radial-linear(circle_at_bottom_left,rgba(99,102,241,0.22),transparent_30%)]" />
         <div className="relative flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
           <div className="space-y-2 max-w-2xl">
             <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'}, {user?.name?.split(' ')[0] ?? 'there'}</h1>
@@ -84,13 +84,13 @@ const Dashboard: React.FC = () => {
           { label: 'Scheduled', value: scheduled.length, icon: FiClock, accent: 'from-violet-500 to-fuchsia-500' },
           { label: 'Live now', value: upcoming.filter((s) => s.status === 'live').length, icon: FiTrendingUp, accent: 'from-emerald-500 to-teal-500' },
         ].map(({ label, value, icon: Icon, accent }) => (
-          <Card key={label} className="border-0 shadow-sm">
+          <Card key={label} className="border-0 pt-5 shadow-sm">
             <CardContent className="p-5 flex items-start justify-between gap-4">
               <div>
                 <p className="text-sm text-muted">{label}</p>
                 <p className="text-3xl font-bold text-text mt-2">{value}</p>
               </div>
-              <div className={`w-11 h-11 rounded-2xl bg-gradient-to-br ${accent} text-white flex items-center justify-center`}>
+              <div className={`w-11 h-11 rounded-2xl bg-linear-to-br ${accent} text-white flex items-center justify-center`}>
                 <Icon size={20} />
               </div>
             </CardContent>
