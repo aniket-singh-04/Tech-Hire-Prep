@@ -40,7 +40,7 @@ export class VerificationRepo {
             {
                 $inc: { attempts: 1 },
             },
-            { new: true }
+            { returnDocument: "after" }
         );
     }
 
@@ -78,7 +78,7 @@ export class VerificationRepo {
             {
                 $inc: { resendCount: 1 },
             },
-            { new: true }
+            { returnDocument: "after" }
         );
     }
 

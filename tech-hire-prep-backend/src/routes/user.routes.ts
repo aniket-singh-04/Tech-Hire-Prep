@@ -11,7 +11,7 @@ const usernameParamsSchema = z.object({
 
 const userRoute: ExpressRouter = Router();
 
-userRoute.get("/:username", validateParams(usernameParamsSchema), getMyPublicProfileController);
+userRoute.get("/profile/:username", validateParams(usernameParamsSchema), getMyPublicProfileController);
 
 userRoute.use(protect);
 userRoute.get("/me", getMyProfileController);
@@ -21,4 +21,4 @@ userRoute.patch("/me/avatar", validateBody(saveAvatarSchema), saveAvatarControll
 userRoute.patch("/me/availability", validateBody(availabilityUpdateSchema), updateAvailabilityController);
 userRoute.delete("/me", deleteAccountController);
 
-export default userRoute;
+export default userRoute;

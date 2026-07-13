@@ -80,13 +80,11 @@ const ProfileSchema = new Schema<IProfile>({
         type: Schema.Types.ObjectId,
         ref: "User",
         required: true,
-        unique: true,
     },
 
     username: {
         type: String,
         required: true,
-        unique: true,
         trim: true,
         lowercase: true,
         minlength: 3,
@@ -124,7 +122,6 @@ const ProfileSchema = new Schema<IProfile>({
     targetRole: {
         type: String,
         enum: Object.values(TargetRole),
-        required: true,
     },
 
     experienceLevel: {

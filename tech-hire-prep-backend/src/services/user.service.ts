@@ -49,6 +49,7 @@ export const getMyProfileService = async (payload: UserIdDto) => {
         profile = await profileRepository.create({
             userId: new mongoose.Types.ObjectId(payload.userId),
             username,
+            experienceLevel : ExperienceLevel.BEGINNER
         });
     }
     return serializeProfile(profile);

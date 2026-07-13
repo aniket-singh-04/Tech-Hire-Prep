@@ -60,7 +60,7 @@ export class OtpRepository {
   //       },
   //     },
   //     {
-  //       new: true,
+  //       returnDocument: "after",
   //     },
   //   );
   // }
@@ -72,7 +72,7 @@ export class OtpRepository {
   //       consumedAt: new Date(),
   //     },
   //     {
-  //       new: true,
+  //       returnDocument: "after",
   //     },
   //   );
   // }

@@ -44,7 +44,7 @@ export class UserRepository {
         password: passwordHash,
       },
       {
-        new: true,
+        returnDocument: "after",
       },
     );
   }
@@ -58,7 +58,7 @@ export class UserRepository {
     update: Record<string, unknown>,
   ) {
     return UserModel.findByIdAndUpdate(_id, update, {
-      new: true,
+      returnDocument: "after",
     });
   }
 

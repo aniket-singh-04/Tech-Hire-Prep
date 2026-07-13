@@ -40,7 +40,7 @@ export class SessionRepository {
         revoked: true,
         revokedAt: new Date(),
       },
-      { new: true }
+      { returnDocument: "after" }
     );
   }
 
@@ -51,7 +51,7 @@ export class SessionRepository {
         revoked: true,
         revokedAt: new Date(),
       },
-      { new: true }
+      { returnDocument: "after" }
     );
   }
 

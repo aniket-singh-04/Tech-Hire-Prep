@@ -1,10 +1,15 @@
 import { Request, Response } from "express";
 import { asyncHandler } from "../utils/asyncHandler.ts";
-import { created, ok } from "../common/response.ts";
+import { badRequest, created, ok } from "../common/response.ts";
 import { createUserAvatarUploadUrlService, deleteAccountService, getMyProfileService, getMyPublicProfileService, saveUserAvatarService, updateMyAvailabilityService, updateMyProfileService } from "../services/user.service.ts";
 
 export const getMyPublicProfileController = asyncHandler(async (req: Request, res: Response) => {
-  const result = await getMyPublicProfileService(String(req.params!.username));
+  const username = req.params.username;
+
+  if (!username) {
+    return badRequest(res, "Username is required.");
+  }
+  const result = await getMyPublicProfileService(username.toString());
   return ok(res, result, "This is my public Profile.")
 });
 

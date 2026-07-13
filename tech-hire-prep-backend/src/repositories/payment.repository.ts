@@ -34,7 +34,7 @@ export class PaymentRepository {
     if (failureReason) {
       updateData.failureReason = failureReason;
     }
-    return await Payment.findOneAndUpdate({ orderId }, updateData, { new: true }).exec();
+    return await Payment.findOneAndUpdate({ orderId }, updateData, { returnDocument: "after" }).exec();
   }
 
   public static async updateGatewayData(
@@ -46,7 +46,7 @@ export class PaymentRepository {
     return await Payment.findOneAndUpdate(
       { orderId },
       { paymentId, signature, paymentMethod },
-      { new: true }
+      { returnDocument: "after" }
     ).exec();
   }
 

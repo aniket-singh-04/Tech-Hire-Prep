@@ -33,7 +33,7 @@ export class MatchRepository {
     return InterviewRequestModel.findByIdAndUpdate(
       requestId,
       { $set: { status, ...extraUpdates } },
-      { new: true }
+      { returnDocument: "after" }
     );
   }
 
@@ -50,7 +50,7 @@ export class MatchRepository {
     return InterviewRequestModel.findByIdAndUpdate(
       requestId,
       { $push: { notifiedUsers: { $each: newNotifiedUsers } } },
-      { new: true }
+      { returnDocument: "after" }
     );
   }
 
@@ -79,7 +79,7 @@ export class MatchRepository {
           "notifiedUsers.$.respondedAt": new Date()
         }
       },
-      { new: true }
+      { returnDocument: "after" }
     );
   }
 
@@ -98,7 +98,7 @@ export class MatchRepository {
           "notifiedUsers.$.respondedAt": new Date()
         }
       },
-      { new: true }
+      { returnDocument: "after" }
     );
   }
 

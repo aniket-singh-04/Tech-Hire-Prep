@@ -145,7 +145,7 @@ export const saveEditorSessionService = async (
   const updated = await InterviewSessionModel.findByIdAndUpdate(
     sessionId,
     { $set: { code, language } },
-    { new: true }
+    { returnDocument: "after" }
   );
 
   return {
@@ -197,7 +197,7 @@ export const resetEditorSessionService = async (sessionId: string, userId: strin
   await InterviewSessionModel.findByIdAndUpdate(
     sessionId,
     { $unset: { code: "", language: "" } },
-    { new: true }
+    { returnDocument: "after" }
   );
 
   return { reset: true };

@@ -64,7 +64,7 @@ export const joinSessionService = async (sessionId: string, userId: string) => {
   const updatedSession = await InterviewSessionModel.findByIdAndUpdate(
     sessionId,
     { $set: update },
-    { new: true }
+    { returnDocument: "after" }
   );
 
   return updatedSession;
@@ -85,7 +85,7 @@ export const startSessionService = async (sessionId: string, userId: string) => 
   const session = await InterviewSessionModel.findOneAndUpdate(
     { _id: sessionId, status: InterviewSessionStatus.SCHEDULED },
     { $set: { status: InterviewSessionStatus.ACTIVE, startTime: new Date() } },
-    { new: true }
+    { returnDocument: "after" }
   );
 
   if (!session) throw new AppError("Cannot start session", 400);
@@ -100,7 +100,7 @@ export const endSessionService = async (sessionId: string, userId: string) => {
   const session = await InterviewSessionModel.findOneAndUpdate(
     { _id: sessionId, status: InterviewSessionStatus.ACTIVE },
     { $set: { status: InterviewSessionStatus.COMPLETED, endTime: new Date() } },
-    { new: true }
+    { returnDocument: "after" }
   );
 
   if (!session) throw new AppError("Cannot end session", 400);
@@ -115,7 +115,7 @@ export const cancelSessionService = async (sessionId: string, userId: string) =>
   const session = await InterviewSessionModel.findOneAndUpdate(
     { _id: sessionId, status: InterviewSessionStatus.SCHEDULED },
     { $set: { status: InterviewSessionStatus.CANCELLED } },
-    { new: true }
+    { returnDocument: "after" }
   );
 
   if (!session) throw new AppError("Cannot cancel session", 400);
@@ -137,7 +137,7 @@ export const rateSessionService = async (sessionId: string, userId: string, rati
   return InterviewSessionModel.findByIdAndUpdate(
     sessionId,
     { $set: { rating } },
-    { new: true }
+    { returnDocument: "after" }
   );
 };
 
@@ -152,6 +152,6 @@ export const feedbackSessionService = async (sessionId: string, userId: string, 
   return InterviewSessionModel.findByIdAndUpdate(
     sessionId,
     { $set: { feedback } },
-    { new: true }
+    { returnDocument: "after" }
   );
 };

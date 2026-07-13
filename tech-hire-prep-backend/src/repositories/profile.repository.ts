@@ -17,7 +17,7 @@ class ProfileRepository {
 
     async findPublicProfile(username: string) {
         return Profile.findOne({ username }).select(
-            "fullName username headline bio college branch graduationYear targetRole experienceLevel skills socialLinks isProfileCompleted createdAt updatedAt"
+            "fullName username userId headline bio college branch graduationYear targetRole experienceLevel skills socialLinks isProfileCompleted createdAt updatedAt"
         );
     }
 
@@ -38,7 +38,7 @@ class ProfileRepository {
             { userId },
             { $set: update },
             {
-                new: true,
+                returnDocument: "after",
                 runValidators: true,
             }
         );
