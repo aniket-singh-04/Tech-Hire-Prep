@@ -1,15 +1,17 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { VscSearch, VscClose, VscLoading, VscRocket } from 'react-icons/vsc';
+import toast from 'react-hot-toast';
 import { matchApi, profileApi } from '../../services/backendApi';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
-import type { Profile } from '../../types';
+import { ExperienceLevel, PreferredLanguage, TargetRole, type Profile } from '../../types';
 import { FaClock } from 'react-icons/fa';
 import { Select } from '../../components/ui/Select';
+import { interviewType } from '../../types/match.types';
+import { Input } from '../../components/ui/Input';
 
-const ROLES = ['Software Engineer', 'Data Scientist', 'Product Manager', 'Systems Engineer', 'DevOps Engineer'];
 
 export const Matchmaking: React.FC = () => {
   const navigate = useNavigate();
@@ -17,10 +19,18 @@ export const Matchmaking: React.FC = () => {
   const [queueStatus, setQueueStatus] = useState<{ status: string; requestId?: string; sessionId?: string; expiresAt?: string } | null>(null);
   const [isRequesting, setIsRequesting] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
-  const [targetRole, setTargetRole] = useState('');
-  const [notes, setNotes] = useState('');
+  const [targetRole, setTargetRole] = useState<TargetRole>();
+  const [interviewTypes, setInterviewTypes] = useState<interviewType>();
+  const [experienceLevel, setExperienceLevel] = useState<ExperienceLevel>();
+  const [preferredLanguage, setPreferredLanguage] = useState<PreferredLanguage>();
+  const [duration, setDuration] = useState<number>();
+  const [description, setDescription] = useState('');
   const [slots] = useState<any[]>([{ day: 'Monday', start: '09:00', end: '10:00', timezone: 'UTC' }]);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const ROLES = Object.values(TargetRole);
+  const INTERVIEW_TYPES = Object.values(interviewType);
+  const EXPERIENCE_LEVEL = Object.values(ExperienceLevel);
+  const PREFERREDLANGUAGE = Object.values(PreferredLanguage);
 
   const loadStatus = useCallback(async () => {
     const status: any = await matchApi.getQueueStatus();
@@ -44,13 +54,14 @@ export const Matchmaking: React.FC = () => {
           setTargetRole(profileValue?.targetRole ?? '');
         }
         await loadStatus();
-      } catch {
-        // ignore init error
+      } catch (e: unknown) {
+        toast.error((e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Failed to load status');
       }
     };
     init();
     return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
   }, [loadStatus]);
+  console.log(targetRole)
 
   useEffect(() => {
     if (queueStatus?.status === 'pending') {
@@ -62,17 +73,24 @@ export const Matchmaking: React.FC = () => {
   }, [queueStatus?.status, loadStatus]);
 
   const handleRequest = async () => {
-    setIsRequesting(true);
+    if (!interviewTypes || !targetRole || !experienceLevel || !preferredLanguage || !duration) {
+      toast.error("Please fill in all required fields.");
+      return;
+    }
     try {
-      await matchApi.requestMatch({ 
-        interviewType: 'PEER',
-        preferredRole: targetRole || profile?.targetRole?.toUpperCase(), 
-        description: notes || undefined,
-        duration: 60,
+      setIsRequesting(true);
+      await matchApi.requestMatch({
+        interviewType: interviewTypes,
+        preferredRole: targetRole,
+        difficulty: experienceLevel,
+        preferredLanguage,
+        duration,
+        description: description || undefined,
       });
+      toast.success("Match request submitted successfully!");
       await loadStatus();
     } catch (e: unknown) {
-      alert((e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Failed to request match');
+      toast.error((e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Failed to request match');
     } finally { setIsRequesting(false); }
   };
 
@@ -80,7 +98,10 @@ export const Matchmaking: React.FC = () => {
     setIsCancelling(true);
     try {
       await matchApi.cancelMatch();
+      toast.success("Match request cancelled.");
       await loadStatus();
+    } catch (e: unknown) {
+      toast.error("Failed to cancel match request.");
     } finally { setIsCancelling(false); }
   };
 
@@ -88,7 +109,7 @@ export const Matchmaking: React.FC = () => {
   const isMatched = queueStatus?.status === 'matched';
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-2xl mx-auto">
+    <div className="space-y-6 animate-fade-in max-w-2xl ">
       <div>
         <h1 className="text-2xl font-bold text-text">Find a Match</h1>
         <p className="text-muted text-sm mt-0.5">Get paired with a peer for a live mock interview</p>
@@ -133,9 +154,19 @@ export const Matchmaking: React.FC = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-muted mb-2">Target Role</label>
-              <Select 
-                options={ROLES.map(r => ({ label: r, value: r }))} 
+              <Select
+                label='Interview Type'
+                options={INTERVIEW_TYPES.map((t) => ({ label: t, value: t }))}
+                value={interviewTypes || ''}
+                onChange={setInterviewTypes}
+                placeholder="Select your interview type"
+              />
+            </div>
+
+            <div>
+              <Select
+                label='Target Role'
+                options={ROLES.map((t) => ({ label: t, value: t }))}
                 value={targetRole || ''}
                 onChange={setTargetRole}
                 placeholder="Select your target role"
@@ -143,6 +174,31 @@ export const Matchmaking: React.FC = () => {
               {profile?.targetRole && targetRole !== profile.targetRole && (
                 <p className="text-xs text-subtle mt-1">Your profile role: {profile.targetRole}</p>
               )}
+            </div>
+
+            <div>
+              <Select
+                label='Experience Level'
+                options={EXPERIENCE_LEVEL.map((t) => ({ label: t, value: t }))}
+                value={experienceLevel || ''}
+                onChange={setExperienceLevel}
+                placeholder="Select your experience level"
+              />
+            </div>
+
+            <div>
+              <Select
+                label='Preferred Language'
+                options={PREFERREDLANGUAGE.map((t) => ({ label: t, value: t }))}
+                value={preferredLanguage || ''}
+                onChange={setPreferredLanguage}
+                placeholder="Select your preferred language"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-muted mb-1">Duration</label>
+              <Input type="number" placeholder="20 --(min)" required value={duration} onChange={(e) => setDuration(Number(e.target.value))} />
             </div>
 
             {profile?.skills && profile.skills.length > 0 && (
@@ -155,11 +211,11 @@ export const Matchmaking: React.FC = () => {
             )}
 
             <div>
-              <label className="block text-sm font-medium text-muted mb-1">Notes (optional)</label>
+              <label className="block text-sm font-medium text-muted mb-1">Discription --<span className="italic text-[12px]">(For better experience describe about your Role & Resume)</span></label>
               <textarea
-                placeholder="e.g. I want to focus on system design questions..."
-                value={notes}
-                onChange={e => setNotes(e.target.value)}
+                placeholder="e.g. I want to focus on system design questions..., Backend (Node.js), Frontend (React.js)..."
+                value={description}
+                onChange={e => setDescription(e.target.value)}
                 rows={3}
                 className="input-field resize-none"
               />

@@ -1,4 +1,5 @@
 import React, { type TextareaHTMLAttributes } from 'react';
+import toast from 'react-hot-toast';
 
 export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: string;
@@ -45,7 +46,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
             style={{ color: 'var(--danger)' }}
             role="alert"
           >
-            {error}
+            {toast.error(error)}
           </p>
         )}
       </div>

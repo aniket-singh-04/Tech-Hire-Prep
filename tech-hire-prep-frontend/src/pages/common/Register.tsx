@@ -6,25 +6,25 @@ import { Button } from '../../components/ui/Button';
 import { authApi } from '../../services/backendApi';
 import { ApiError } from '../../utils/api';
 import { ThemeToggle } from '../../components/ui/ThemeToggle';
+import toast from 'react-hot-toast';
 
 const Register: React.FC = () => {
   const navigate = useNavigate();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SubmitEvent) => {
     e.preventDefault();
-    setError('');
     setIsLoading(true);
 
     try {
       const payload: any = await authApi.register({ name, email, password });
       navigate(`/verify-otp?mode=register&challengeId=${encodeURIComponent(payload?.challengeId ?? "")}&email=${encodeURIComponent(payload?.maskedEmail ?? email)}`);
+      toast.success("Registration successful. Please verify OTP.");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to register');
+      toast.error(err instanceof ApiError ? err.message : 'Failed to register');
     } finally {
       setIsLoading(false);
     }
@@ -33,7 +33,7 @@ const Register: React.FC = () => {
   return (
     <div className="auth-shell">
       <div className="absolute top-4 right-4">
-         <ThemeToggle />
+        <ThemeToggle />
       </div>
       <Card className="auth-card">
         <CardHeader className="space-y-2 text-center pb-6">
@@ -42,11 +42,6 @@ const Register: React.FC = () => {
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
-            {error && (
-              <div className="p-3 bg-danger-soft text-danger text-sm rounded-md border border-danger/20 text-center font-medium">
-                {error}
-              </div>
-            )}
             <Input label="Full Name" type="text" placeholder="John Doe" required value={name} onChange={(e) => setName(e.target.value)} />
             <Input label="Email" type="email" placeholder="m@example.com" required value={email} onChange={(e) => setEmail(e.target.value)} />
             <Input label="Password" type="password" placeholder="✱✱✱✱✱✱✱✱" required value={password} onChange={(e) => setPassword(e.target.value)} />

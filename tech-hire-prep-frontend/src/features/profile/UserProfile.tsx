@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { profileApi } from "../../services/backendApi";
 import { Button } from "../../components/ui/Button";
+import toast from "react-hot-toast";
 import { Input } from "../../components/ui/Input";
 import { Textarea } from "../../components/ui/Textarea";
 import { Avatar } from "../../components/ui/Avatar";
@@ -111,6 +112,7 @@ export const UserProfile: React.FC = () => {
       showSuccess();
     } catch (error) {
       console.error(error);
+      toast.error("Failed to update profile.");
     } finally {
       setIsSaving(false);
     }
@@ -123,6 +125,7 @@ export const UserProfile: React.FC = () => {
       showSuccess();
     } catch (error) {
       console.error(error);
+      toast.error("Failed to update availability.");
     } finally {
       setIsSaving(false);
     }

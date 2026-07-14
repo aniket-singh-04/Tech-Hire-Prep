@@ -4,6 +4,7 @@ import type { AuthUser, UserRole } from "../features/auth/types";
 import { userHasRole } from "../features/auth/access";
 import { mapAuthUser } from "../features/auth/user";
 import { api, ApiError } from "../utils/api";
+import toast from "react-hot-toast";
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -30,6 +31,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const mappedUser = mapAuthUser(payload);
       setUser(mappedUser);
     } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : '');
       if (error instanceof ApiError && error.status === 401) {
         setUser(null);
         localStorage.removeItem('token');

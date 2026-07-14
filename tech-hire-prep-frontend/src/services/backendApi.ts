@@ -1,5 +1,6 @@
 import { api } from "../utils/api";
 import type { EditorTemplate, FeedbackPayload, PointTransaction, Profile, Session, WalletLedger } from "../types";
+import type { MatchRequestInput } from "../types/match.types";
 
 const withQuery = (path: string, query: Record<string, string | number | undefined>) => {
   const params = new URLSearchParams();
@@ -58,7 +59,7 @@ export const profileApi = {
 };
 
 export const matchApi = {
-  requestMatch: (payload: Record<string, unknown>) =>
+  requestMatch: (payload: MatchRequestInput) =>
     api.post<any>("/api/v1/match/request", payload).then(unwrapData),
   getQueueStatus: () => api.get<any>("/api/v1/match/active").then(unwrapData),
   cancelMatch: () => api.post<any>("/api/v1/match/cancel").then(unwrapData),

@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Editor from '@monaco-editor/react';
 import { VscPlay, VscClose, VscRecordKeys } from 'react-icons/vsc';
+import toast from 'react-hot-toast';
 import { Button } from '../../components/ui/Button';
 import { Select } from '../../components/ui/Select';
 import { api } from '../../utils/api';
@@ -11,13 +12,13 @@ import { Badge } from '../../components/ui/Badge';
 export const InterviewRoom: React.FC = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
-  
+
   const [code, setCode] = useState('// Write your code here\n');
   const [language, setLanguage] = useState('javascript');
   const [output, setOutput] = useState('');
   const [isRunning, setIsRunning] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
-  
+
   const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
@@ -28,6 +29,7 @@ export const InterviewRoom: React.FC = () => {
         if (res.data?.code) setCode(res.data.code);
         if (res.data?.language) setLanguage(res.data.language);
       } catch (err) {
+        toast.error('Failed to load session code');
         console.error('Failed to load session code', err);
       }
     };
@@ -37,7 +39,7 @@ export const InterviewRoom: React.FC = () => {
     // A production app would connect via socket.io to sync code changes
     const token = localStorage.getItem('token');
     const socketUrl = import.meta.env.VITE_WS_URL || 'http://localhost:4400';
-    
+
     socketRef.current = io(socketUrl, {
       auth: { token },
       query: { sessionId }
@@ -45,7 +47,7 @@ export const InterviewRoom: React.FC = () => {
 
     socketRef.current.on('connect', () => setIsConnected(true));
     socketRef.current.on('disconnect', () => setIsConnected(false));
-    
+
     socketRef.current.on('code-update', (newCode: string) => {
       setCode(newCode);
     });
@@ -60,7 +62,7 @@ export const InterviewRoom: React.FC = () => {
     setCode(newCode);
     // Debounce this in a real scenario
     socketRef.current?.emit('code-change', { sessionId, code: newCode });
-    api.post(`/api/v1/editor/session/${sessionId}/save`, { code: newCode, language }).catch(console.error);
+    api.post(`/api/v1/editor/session/${sessionId}/save`, { code: newCode, language }).catch(() => toast.error('Failed to save code'));
   };
 
   const handleRun = async () => {
@@ -71,14 +73,18 @@ export const InterviewRoom: React.FC = () => {
       setOutput(res.data?.output || 'Execution successful but no output returned.');
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } }, message?: string };
-      setOutput(error.response?.data?.message || error.message || 'Execution failed.');
+      const errorMessage = error.response?.data?.message || error.message || 'Execution failed.';
+      toast.error(errorMessage);
+      setOutput(errorMessage);
     } finally {
       setIsRunning(false);
     }
   };
 
   const handleLeave = () => {
-    api.post(`/api/v1/session/${sessionId}/leave`).catch(console.error);
+    api.post(`/api/v1/session/${sessionId}/leave`)
+      .then(() => toast.success('Left session'))
+      .catch(() => toast.error('Failed to leave session'));
     navigate(`/sessions/${sessionId}`);
   };
 
@@ -93,9 +99,10 @@ export const InterviewRoom: React.FC = () => {
           </div>
           <Badge variant="gray">{sessionId}</Badge>
         </div>
-        
+
         <div className="flex items-center gap-3">
-          <Select 
+          <Select
+            label='type'
             options={[
               { label: 'JavaScript', value: 'javascript' },
               { label: 'TypeScript', value: 'typescript' },
@@ -162,7 +169,7 @@ export const InterviewRoom: React.FC = () => {
               }}
             />
           </div>
-          
+
           {/* Output Panel */}
           {output && (
             <div className="h-64 border-t border-border bg-[#1e1e1e] text-gray-300 font-mono text-sm flex flex-col shrink-0">
@@ -182,3 +189,4 @@ export const InterviewRoom: React.FC = () => {
     </div>
   );
 };
+

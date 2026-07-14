@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
+import toast from "react-hot-toast";
 
 const ForgotPassword: React.FC = () => {
   const [email, setEmail] = useState("");
@@ -19,10 +20,11 @@ const ForgotPassword: React.FC = () => {
     try {
       const payload: any = await authApi.forgotPassword({ email });
       setSuccess(true);
+      toast.success("Reset link sent successfully!");
       setEmail(payload?.maskedEmail ?? email);
     } catch (err) {
       setSuccess(false);
-      console.error(err instanceof ApiError ? err.message : err);
+      toast.error(err instanceof ApiError ? err.message : 'Failed to send reset link');
     } finally {
       setLoading(false);
     }
@@ -76,3 +78,4 @@ const ForgotPassword: React.FC = () => {
 };
 
 export default ForgotPassword;
+

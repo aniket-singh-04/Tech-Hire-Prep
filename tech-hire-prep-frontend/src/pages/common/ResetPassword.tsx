@@ -5,6 +5,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
+import toast from "react-hot-toast";
 
 const ResetPassword: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -15,24 +16,22 @@ const ResetPassword: React.FC = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
 
     if (!token || !userId) {
-      setError("Invalid or missing reset token or user id.");
+      toast.error("Invalid or missing reset token or user id.");
       return;
     }
 
     if (password !== confirmPassword) {
-      setError("Passwords do not match.");
+      toast.error("Passwords do not match.");
       return;
     }
 
     if (password.length < 8) {
-      setError("Password must be at least 8 characters long.");
+      toast.error("Password must be at least 8 characters long.");
       return;
     }
 
@@ -40,8 +39,9 @@ const ResetPassword: React.FC = () => {
     try {
       await authApi.resetPassword({ userId, token, password });
       navigate("/login?reset=success");
+      toast.success("Login successful.");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to reset password");
+      toast.error(err instanceof ApiError ? err.message : 'Failed to register');
     } finally {
       setLoading(false);
     }
@@ -58,12 +58,6 @@ const ResetPassword: React.FC = () => {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
-            {error && (
-              <div className="p-3 bg-danger/10 text-danger text-sm rounded-md border border-danger/20 text-center">
-                {error}
-              </div>
-            )}
-            
             <Input 
               label="New Password" 
               type="password" 

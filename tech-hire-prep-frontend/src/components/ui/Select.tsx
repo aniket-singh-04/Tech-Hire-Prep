@@ -53,7 +53,7 @@ export const Select: React.FC<SelectProps> = ({
     <Listbox value={value} onChange={onChange} disabled={disabled}>
       <div className={className}>
         {label && (
-          <label className="mb-1 block text-sm font-medium text-text-primary">
+          <label className="mb-1 block text-sm font-medium text-muted">
             {label}
           </label>
         )}

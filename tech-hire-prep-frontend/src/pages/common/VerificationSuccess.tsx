@@ -5,6 +5,7 @@ import { Button } from "../../components/ui/Button";
 import { Spinner } from "../../components/ui/Spinner";
 import { authApi } from "../../services/backendApi";
 import { ApiError } from "../../utils/api";
+import toast from "react-hot-toast";
 
 const VerificationSuccess: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -20,9 +21,11 @@ const VerificationSuccess: React.FC = () => {
         const payload: any = await authApi.confirmEmailVerification({ userId, token });
         setMessage(payload?.message || "Email verified successfully.");
         setStatus("success");
+        toast.success(payload?.message || "Email verified successfully.")
       } catch (err) {
         setMessage(err instanceof ApiError ? err.message : "The verification link is invalid or has expired.");
         setStatus("error");
+        toast.error(err instanceof ApiError ? err.message : "The verification link is invalid or has expired.")
       }
     };
     void confirm();

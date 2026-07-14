@@ -6,6 +6,7 @@ import { Button } from "../../components/ui/Button";
 import { authApi } from "../../services/backendApi";
 import { ApiError } from "../../utils/api";
 import { useAuth } from "../../context/AuthContext";
+import toast from "react-hot-toast";
 
 const VerifyOtp: React.FC = () => {
   const [params] = useSearchParams();
@@ -16,13 +17,11 @@ const VerifyOtp: React.FC = () => {
   const email = params.get("email") ?? "";
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.SubmitEvent) => {
     e.preventDefault();
-    setError("");
     if (!challengeId) {
-      setError("Missing verification challenge. Please try again.");
+      toast.error("Missing verification challenge. Please try again.");
       return;
     }
     setLoading(true);
@@ -36,7 +35,7 @@ const VerifyOtp: React.FC = () => {
       login(payload.accessToken, payload.user);
       navigate("/dashboard", { replace: true });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Verification failed");
+      toast.error(err instanceof ApiError ? err.message : "Verification failed");
     } finally {
       setLoading(false);
     }
@@ -53,7 +52,6 @@ const VerifyOtp: React.FC = () => {
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
-            {error && <div className="rounded-md border border-danger/20 bg-danger-soft p-3 text-center text-sm font-medium text-danger">{error}</div>}
             <Input label="One-time password" inputMode="numeric" maxLength={6} placeholder="123456" required value={otp} onChange={(e) => setOtp(e.target.value)} />
           </CardContent>
           <CardFooter className="flex flex-col gap-4 pt-4">
