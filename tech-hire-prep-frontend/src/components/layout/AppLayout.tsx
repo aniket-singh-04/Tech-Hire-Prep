@@ -51,7 +51,6 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({
         <aside className="app-sidebar shadow-sm">
           <div className="flex-1 py-4 space-y-1">
             {navLinks.map((link) => {
-              console.log(link)
               const Icon = link.icon;
               const isActive =
                 location.pathname === link.path ||
@@ -232,3 +231,4 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({
     </div>
   );
 };
+

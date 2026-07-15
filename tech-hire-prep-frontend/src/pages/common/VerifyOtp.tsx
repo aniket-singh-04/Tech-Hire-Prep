@@ -4,14 +4,15 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "../../components/ui/Input";
 import { Button } from "../../components/ui/Button";
 import { authApi } from "../../services/backendApi";
-import { ApiError } from "../../utils/api";
 import { useAuth } from "../../context/AuthContext";
-import toast from "react-hot-toast";
+import { useToast } from "../../context/ToastContext";
+import { getErrorMessage } from "../../utils/notifications";
 
 const VerifyOtp: React.FC = () => {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const { login } = useAuth();
+  const { pushToast } = useToast();
   const mode = params.get("mode") === "register" ? "register" : "login";
   const challengeId = params.get("challengeId") ?? "";
   const email = params.get("email") ?? "";
@@ -21,7 +22,7 @@ const VerifyOtp: React.FC = () => {
   const handleSubmit = async (e: React.SubmitEvent) => {
     e.preventDefault();
     if (!challengeId) {
-      toast.error("Missing verification challenge. Please try again.");
+      pushToast({ title: "Verification failed", description: "Missing verification challenge. Please try again.", variant: "error" });
       return;
     }
     setLoading(true);
@@ -35,7 +36,7 @@ const VerifyOtp: React.FC = () => {
       login(payload.accessToken, payload.user);
       navigate("/dashboard", { replace: true });
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Verification failed");
+      pushToast({ title: "Verification failed", description: getErrorMessage(err, "Verification failed"), variant: "error" });
     } finally {
       setLoading(false);
     }
@@ -46,9 +47,7 @@ const VerifyOtp: React.FC = () => {
       <Card className="auth-card">
         <CardHeader className="space-y-2 text-center pb-6">
           <CardTitle className="text-2xl font-bold tracking-tight">Verify your code</CardTitle>
-          <CardDescription>
-            Enter the OTP sent to {email || "your email address"} to finish {mode === "register" ? "registration" : "sign in"}.
-          </CardDescription>
+          <CardDescription>Enter the OTP sent to {email || "your email address"} to finish {mode === "register" ? "registration" : "sign in"}.</CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">

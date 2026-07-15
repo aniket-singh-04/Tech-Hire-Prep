@@ -4,12 +4,13 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { authApi } from '../../services/backendApi';
-import { ApiError } from '../../utils/api';
 import { ThemeToggle } from '../../components/ui/ThemeToggle';
-import toast from 'react-hot-toast';
+import { useToast } from '../../context/ToastContext';
+import { getErrorMessage } from '../../utils/notifications';
 
 const Register: React.FC = () => {
   const navigate = useNavigate();
+  const { pushToast } = useToast();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -21,10 +22,14 @@ const Register: React.FC = () => {
 
     try {
       const payload: any = await authApi.register({ name, email, password });
-      navigate(`/verify-otp?mode=register&challengeId=${encodeURIComponent(payload?.challengeId ?? "")}&email=${encodeURIComponent(payload?.maskedEmail ?? email)}`);
-      toast.success("Registration successful. Please verify OTP.");
+      navigate(`/verify-otp?mode=register&challengeId=${encodeURIComponent(payload?.challengeId ?? '')}&email=${encodeURIComponent(payload?.maskedEmail ?? email)}`);
+      pushToast({ title: 'Success', description: 'Registration successful. Please verify OTP.', variant: 'success' });
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Failed to register');
+      pushToast({
+        title: 'Registration failed',
+        description: getErrorMessage(err, 'Failed to register'),
+        variant: 'error',
+      });
     } finally {
       setIsLoading(false);
     }
@@ -44,7 +49,7 @@ const Register: React.FC = () => {
           <CardContent className="space-y-4">
             <Input label="Full Name" type="text" placeholder="John Doe" required value={name} onChange={(e) => setName(e.target.value)} />
             <Input label="Email" type="email" placeholder="m@example.com" required value={email} onChange={(e) => setEmail(e.target.value)} />
-            <Input label="Password" type="password" placeholder="✱✱✱✱✱✱✱✱" required value={password} onChange={(e) => setPassword(e.target.value)} />
+            <Input label="Password" type="password" placeholder="********" required value={password} onChange={(e) => setPassword(e.target.value)} />
           </CardContent>
           <CardFooter className="flex flex-col space-y-4 pt-4">
             <Button type="submit" variant="primary" className="w-full" isLoading={isLoading}>Sign Up</Button>

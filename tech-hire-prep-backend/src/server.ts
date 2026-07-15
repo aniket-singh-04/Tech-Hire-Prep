@@ -23,7 +23,8 @@ process.on("unhandledRejection", (reason: unknown) => {
 });
 
 const server = http.createServer(app);
-initSocketServer(server);
+const re = initSocketServer(server);
+console.log(re)
 
 const bootstrap = async (): Promise<void> => {
   try {

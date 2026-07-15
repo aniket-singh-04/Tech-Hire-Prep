@@ -1,17 +1,18 @@
 import React, { useState } from "react";
 import { authApi } from "../../services/backendApi";
-import { ApiError } from "../../utils/api";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
-import toast from "react-hot-toast";
+import { useToast } from "../../context/ToastContext";
+import { getErrorMessage } from "../../utils/notifications";
 
 const ResetPassword: React.FC = () => {
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
   const userId = searchParams.get("userId");
   const navigate = useNavigate();
+  const { pushToast } = useToast();
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -21,17 +22,17 @@ const ResetPassword: React.FC = () => {
     e.preventDefault();
 
     if (!token || !userId) {
-      toast.error("Invalid or missing reset token or user id.");
+      pushToast({ title: "Reset password failed", description: "Invalid or missing reset token or user id.", variant: "error" });
       return;
     }
 
     if (password !== confirmPassword) {
-      toast.error("Passwords do not match.");
+      pushToast({ title: "Reset password failed", description: "Passwords do not match.", variant: "error" });
       return;
     }
 
     if (password.length < 8) {
-      toast.error("Password must be at least 8 characters long.");
+      pushToast({ title: "Reset password failed", description: "Password must be at least 8 characters long.", variant: "error" });
       return;
     }
 
@@ -39,9 +40,9 @@ const ResetPassword: React.FC = () => {
     try {
       await authApi.resetPassword({ userId, token, password });
       navigate("/login?reset=success");
-      toast.success("Login successful.");
+      pushToast({ title: "Success", description: "Login successful.", variant: "success" });
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Failed to register');
+      pushToast({ title: "Reset password failed", description: getErrorMessage(err, "Failed to register"), variant: "error" });
     } finally {
       setLoading(false);
     }
@@ -52,37 +53,16 @@ const ResetPassword: React.FC = () => {
       <Card className="w-full max-w-md shadow-xl">
         <CardHeader className="space-y-2 text-center pb-6">
           <CardTitle className="text-2xl font-bold text-fg">Create New Password</CardTitle>
-          <CardDescription className="text-muted">
-            Please enter your new password below.
-          </CardDescription>
+          <CardDescription className="text-muted">Please enter your new password below.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
-            <Input 
-              label="New Password" 
-              type="password" 
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required 
-            />
-            <Input 
-              label="Confirm New Password" 
-              type="password" 
-              placeholder="••••••••"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required 
-            />
-            
+            <Input label="New Password" type="password" placeholder="********" value={password} onChange={(e) => setPassword(e.target.value)} required />
+            <Input label="Confirm New Password" type="password" placeholder="********" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
             <div className="space-y-4">
-              <Button type="submit" className="w-full" isLoading={loading}>
-                Reset Password
-              </Button>
+              <Button type="submit" className="w-full" isLoading={loading}>Reset Password</Button>
               <div className="text-center">
-                <Link to="/login" className="text-sm text-brand-600 font-medium hover:underline">
-                  Cancel and return to Login
-                </Link>
+                <Link to="/login" className="text-sm text-brand-600 font-medium hover:underline">Cancel and return to Login</Link>
               </div>
             </div>
           </form>

@@ -146,20 +146,20 @@ export async function apiRequest<T>(
       }
     }
 
-    const data = await safeParseJson<T & ApiErrorShape>(res);
-
+    const response = await safeParseJson<ApiSuccessResponse<T>>(res);
     if (!res.ok) {
       const message =
-        data?.message ||
+        response?.message ??
         (res.status === 401
           ? "Unauthorized"
           : res.status === 403
             ? "Forbidden"
             : "Request failed");
-      throw new ApiError(message, res.status, data);
+
+      throw new ApiError(message, res.status, response);
     }
 
-    return (data ?? ({} as T)) as T;
+    return (response?.data ?? ({} as T)) as T;
   } finally {
     window.clearTimeout(timeoutId);
   }

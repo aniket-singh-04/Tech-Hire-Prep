@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { VscSearch, VscClose, VscLoading, VscRocket } from 'react-icons/vsc';
-import toast from 'react-hot-toast';
 import { matchApi, profileApi } from '../../services/backendApi';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -11,10 +10,12 @@ import { FaClock } from 'react-icons/fa';
 import { Select } from '../../components/ui/Select';
 import { interviewType } from '../../types/match.types';
 import { Input } from '../../components/ui/Input';
-
+import { useToast } from '../../context/ToastContext';
+import { getErrorMessage } from '../../utils/notifications';
 
 export const Matchmaking: React.FC = () => {
   const navigate = useNavigate();
+  const { pushToast } = useToast();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [queueStatus, setQueueStatus] = useState<{ status: string; requestId?: string; sessionId?: string; expiresAt?: string } | null>(null);
   const [isRequesting, setIsRequesting] = useState(false);
@@ -45,9 +46,7 @@ export const Matchmaking: React.FC = () => {
   useEffect(() => {
     const init = async () => {
       try {
-        const [p] = await Promise.allSettled([
-          profileApi.getMe()
-        ]);
+        const [p] = await Promise.allSettled([profileApi.getMe()]);
         if (p.status === 'fulfilled') {
           const profileValue: any = p.value;
           setProfile(profileValue);
@@ -55,26 +54,25 @@ export const Matchmaking: React.FC = () => {
         }
         await loadStatus();
       } catch (e: unknown) {
-        toast.error((e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Failed to load status');
+        pushToast({ title: 'Status load failed', description: getErrorMessage(e, 'Failed to load status'), variant: 'error' });
       }
     };
     init();
     return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
-  }, [loadStatus]);
-  console.log(targetRole)
+  }, [loadStatus, pushToast]);
 
   useEffect(() => {
     if (queueStatus?.status === 'pending') {
       pollingRef.current = setInterval(loadStatus, 5000);
-    } else {
-      if (pollingRef.current) clearInterval(pollingRef.current);
+    } else if (pollingRef.current) {
+      clearInterval(pollingRef.current);
     }
     return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
   }, [queueStatus?.status, loadStatus]);
 
   const handleRequest = async () => {
     if (!interviewTypes || !targetRole || !experienceLevel || !preferredLanguage || !duration) {
-      toast.error("Please fill in all required fields.");
+      pushToast({ title: 'Missing fields', description: 'Please fill in all required fields.', variant: 'error' });
       return;
     }
     try {
@@ -83,14 +81,14 @@ export const Matchmaking: React.FC = () => {
         interviewType: interviewTypes,
         preferredRole: targetRole,
         difficulty: experienceLevel,
-        preferredLanguage,
-        duration,
+        preferredLanguage: preferredLanguage,
+        duration: duration,
         description: description || undefined,
       });
-      toast.success("Match request submitted successfully!");
+      pushToast({ title: 'Success', description: 'Match request submitted successfully!', variant: 'success' });
       await loadStatus();
     } catch (e: unknown) {
-      toast.error((e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Failed to request match');
+      pushToast({ title: 'Request failed', description: getErrorMessage(e, 'Failed to request match'), variant: 'error' });
     } finally { setIsRequesting(false); }
   };
 
@@ -98,10 +96,10 @@ export const Matchmaking: React.FC = () => {
     setIsCancelling(true);
     try {
       await matchApi.cancelMatch();
-      toast.success("Match request cancelled.");
+      pushToast({ title: 'Success', description: 'Match request cancelled.', variant: 'success' });
       await loadStatus();
     } catch (e: unknown) {
-      toast.error("Failed to cancel match request.");
+      pushToast({ title: 'Cancel failed', description: getErrorMessage(e, 'Failed to cancel match request.'), variant: 'error' });
     } finally { setIsCancelling(false); }
   };
 
@@ -115,10 +113,9 @@ export const Matchmaking: React.FC = () => {
         <p className="text-muted text-sm mt-0.5">Get paired with a peer for a live mock interview</p>
       </div>
 
-      {/* Matched! */}
       {isMatched && queueStatus?.sessionId && (
         <div className="rounded-xl border-2 border-green-400 bg-success/10 p-5 text-center space-y-3">
-          <div className="text-4xl">🎉</div>
+          <div className="text-4xl">??</div>
           <h2 className="text-lg font-bold text-green-800">You're matched!</h2>
           <p className="text-sm text-success">A peer interview partner has been found.</p>
           <Button onClick={() => navigate(`/sessions/${queueStatus.sessionId}`)}>
@@ -127,12 +124,11 @@ export const Matchmaking: React.FC = () => {
         </div>
       )}
 
-      {/* Queued / Searching */}
       {isQueued && (
         <div className="rounded-xl border border-blue-200 bg-blue-50 p-5 text-center space-y-4">
           <VscLoading className="animate-spin text-primary mx-auto" size={32} />
           <div>
-            <h2 className="text-lg font-bold text-text">Searching for a match…</h2>
+            <h2 className="text-lg font-bold text-text">Searching for a match...</h2>
             <p className="text-sm text-muted mt-1">We're finding the best peer for you. This usually takes 1-3 minutes.</p>
             {queueStatus.expiresAt && (
               <p className="text-xs text-subtle mt-1 flex items-center justify-center gap-1">
@@ -146,7 +142,6 @@ export const Matchmaking: React.FC = () => {
         </div>
       )}
 
-      {/* Request Form */}
       {!isQueued && !isMatched && (
         <Card>
           <CardHeader>
@@ -154,53 +149,24 @@ export const Matchmaking: React.FC = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Select
-                label='Interview Type'
-                options={INTERVIEW_TYPES.map((t) => ({ label: t, value: t }))}
-                value={interviewTypes || ''}
-                onChange={setInterviewTypes}
-                placeholder="Select your interview type"
-              />
+              <Select label='Interview Type' options={INTERVIEW_TYPES.map((t) => ({ label: t, value: t }))} value={interviewTypes || ''} onChange={setInterviewTypes} placeholder="Select your interview type" />
             </div>
-
             <div>
-              <Select
-                label='Target Role'
-                options={ROLES.map((t) => ({ label: t, value: t }))}
-                value={targetRole || ''}
-                onChange={setTargetRole}
-                placeholder="Select your target role"
-              />
+              <Select label='Target Role' options={ROLES.map((t) => ({ label: t, value: t }))} value={targetRole || ''} onChange={setTargetRole} placeholder="Select your target role" />
               {profile?.targetRole && targetRole !== profile.targetRole && (
                 <p className="text-xs text-subtle mt-1">Your profile role: {profile.targetRole}</p>
               )}
             </div>
-
             <div>
-              <Select
-                label='Experience Level'
-                options={EXPERIENCE_LEVEL.map((t) => ({ label: t, value: t }))}
-                value={experienceLevel || ''}
-                onChange={setExperienceLevel}
-                placeholder="Select your experience level"
-              />
+              <Select label='Experience Level' options={EXPERIENCE_LEVEL.map((t) => ({ label: t, value: t }))} value={experienceLevel || ''} onChange={setExperienceLevel} placeholder="Select your experience level" />
             </div>
-
             <div>
-              <Select
-                label='Preferred Language'
-                options={PREFERREDLANGUAGE.map((t) => ({ label: t, value: t }))}
-                value={preferredLanguage || ''}
-                onChange={setPreferredLanguage}
-                placeholder="Select your preferred language"
-              />
+              <Select label='Preferred Language' options={PREFERREDLANGUAGE.map((t) => ({ label: t, value: t }))} value={preferredLanguage || ''} onChange={setPreferredLanguage} placeholder="Select your preferred language" />
             </div>
-
             <div>
               <label className="block text-sm font-medium text-muted mb-1">Duration</label>
               <Input type="number" placeholder="20 --(min)" required value={duration} onChange={(e) => setDuration(Number(e.target.value))} />
             </div>
-
             {profile?.skills && profile.skills.length > 0 && (
               <div>
                 <p className="text-sm font-medium text-muted mb-2">Your Skills</p>
@@ -209,26 +175,15 @@ export const Matchmaking: React.FC = () => {
                 </div>
               </div>
             )}
-
             <div>
               <label className="block text-sm font-medium text-muted mb-1">Discription --<span className="italic text-[12px]">(For better experience describe about your Role & Resume)</span></label>
-              <textarea
-                placeholder="e.g. I want to focus on system design questions..., Backend (Node.js), Frontend (React.js)..."
-                value={description}
-                onChange={e => setDescription(e.target.value)}
-                rows={3}
-                className="input-field resize-none"
-              />
+              <textarea placeholder="e.g. I want to focus on system design questions..., Backend (Node.js), Frontend (React.js)..." value={description} onChange={e => setDescription(e.target.value)} rows={3} className="input-field resize-none" />
             </div>
-
-            <Button onClick={handleRequest} isLoading={isRequesting} className="w-full">
-              <VscSearch size={16} /> Start Matching
-            </Button>
+            <Button onClick={handleRequest} isLoading={isRequesting} className="w-full"><VscSearch size={16} /> Start Matching</Button>
           </CardContent>
         </Card>
       )}
 
-      {/* Available Slots */}
       {slots.length > 0 && !isQueued && !isMatched && (
         <Card>
           <CardHeader>
@@ -251,4 +206,3 @@ export const Matchmaking: React.FC = () => {
     </div>
   );
 };
-

@@ -4,7 +4,8 @@ import type { AuthUser, UserRole } from "../features/auth/types";
 import { userHasRole } from "../features/auth/access";
 import { mapAuthUser } from "../features/auth/user";
 import { api, ApiError } from "../utils/api";
-import toast from "react-hot-toast";
+import { useToast } from "./ToastContext";
+import { getErrorMessage } from "../utils/notifications";
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -19,19 +20,18 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  // Initialize user from localStorage if needed, or wait for refresh
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const { pushToast } = useToast();
 
   const fetchUser = async (skipRefresh = false) => {
     try {
       const data = await api.get<any>("/api/v1/auth/me", { skipRefresh });
-      console.log(data)
       const payload = data?.user ?? data?.data ?? data;
       const mappedUser = mapAuthUser(payload);
       setUser(mappedUser);
     } catch (error) {
-      toast.error(error instanceof ApiError ? error.message : '');
+      pushToast({ title: "Session error", description: getErrorMessage(error, "An error occurred"), variant: "error" });
       if (error instanceof ApiError && error.status === 401) {
         setUser(null);
         localStorage.removeItem('token');
@@ -44,9 +44,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const refresh = async () => {
     setLoading(true);
     try {
-      const refreshResponse = await api.post<any>("/api/v1/auth/refresh", undefined, {
-        skipRefresh: true,
-      });
+      const refreshResponse = await api.post<any>("/api/v1/auth/refresh", undefined, { skipRefresh: true });
       const accessToken = refreshResponse?.data?.accessToken;
       const refreshUser = mapAuthUser(refreshResponse?.data?.user);
 
@@ -86,6 +84,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (response?.success === false) {
         throw new Error(response?.message || "Logout failed");
       }
+    } catch (error) {
+      pushToast({ title: "Logout failed", description: getErrorMessage(error, "Failed to log out"), variant: "error" });
+      throw error;
     } finally {
       setUser(null);
       localStorage.removeItem('token');
@@ -94,17 +95,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const hasRole = (roles?: UserRole | UserRole[]) => userHasRole(user, roles);
 
-  const value = useMemo(
-    () => ({ user, loading, setUser, login, logout, refresh, hasRole }),
-    [user, loading],
-  );
+  const value = useMemo(() => ({ user, loading, setUser, login, logout, refresh, hasRole }), [user, loading]);
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  )
-}
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};
 
 export const useAuth = () => {
   const context = useContext(AuthContext);

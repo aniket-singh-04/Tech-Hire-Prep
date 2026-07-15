@@ -79,7 +79,7 @@ export const PublicLayout: React.FC<{ children: React.ReactNode }> = ({ children
 
       {/* Mobile Menu Dropdown */}
       {isMobileMenuOpen && (
-        <div className="md:hidden bg-surface-strong border-b border-subtle absolute top-[73px] left-0 w-full z-30 shadow-md animate-fade-in">
+        <div className="md:hidden bg-surface-strong border-b border-subtle absolute top-18.25 left-0 w-full z-30 shadow-md animate-fade-in">
           <div className="flex flex-col p-4 space-y-4">
             <Link to="/about" className="text-sm font-medium text-primary py-2" onClick={() => setIsMobileMenuOpen(false)}>About</Link>
             <Link to="/how-it-works" className="text-sm font-medium text-primary py-2" onClick={() => setIsMobileMenuOpen(false)}>How it Works</Link>

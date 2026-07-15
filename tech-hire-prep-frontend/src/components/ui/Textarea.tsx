@@ -1,6 +1,5 @@
-import React, { type TextareaHTMLAttributes } from 'react';
-import toast from 'react-hot-toast';
-
+import React, { type TextareaHTMLAttributes, useEffect } from 'react';
+import { useToast } from '../../context/ToastContext';
 export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: string;
   error?: string;
@@ -8,7 +7,18 @@ export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElemen
 
 export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
   ({ className = '', label, error, id, ...props }, ref) => {
+    const { pushToast } = useToast();
     const textareaId = id ?? label?.toLowerCase().replace(/\s+/g, '-');
+
+    useEffect(() => {
+      if (error) {
+        pushToast({
+          title: "Error",
+          description: error,
+          variant: "error",
+        });
+      }
+    }, [error, pushToast]);
 
     const textareaClasses = [
       'input-field',
@@ -46,7 +56,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
             style={{ color: 'var(--danger)' }}
             role="alert"
           >
-            {toast.error(error)}
+            {error}
           </p>
         )}
       </div>
@@ -54,3 +64,4 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
   }
 );
 Textarea.displayName = 'Textarea';
+

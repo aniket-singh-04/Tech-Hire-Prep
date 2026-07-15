@@ -223,6 +223,33 @@ html[data-theme="dark"] .public-header {
   background: color-mix(in srgb, var(--surface-strong) 88%, transparent);
 }
 
+/* =========================================
+   Toast Styles
+========================================= */
+.toast-success {
+  border-color: color-mix(in srgb, var(--success) 28%, transparent);
+  background-color: var(--success-soft);
+  color: var(--success);
+}
+
+.toast-error {
+  border-color: color-mix(in srgb, var(--danger) 28%, transparent);
+  background-color: var(--danger-soft);
+  color: var(--danger);
+}
+
+.toast-info {
+  border-color: color-mix(in srgb, var(--info) 28%, transparent);
+  background-color: var(--info-soft);
+  color: var(--info);
+}
+
+.toast-warning {
+  border-color: color-mix(in srgb, var(--warning) 28%, transparent);
+  background-color: var(--warning-soft);
+  color: var(--warning);
+}
+
 /* Responsive Adjustments */
 @media (max-width: 768px) {
   .app-sidebar {
@@ -241,5 +268,15 @@ html[data-theme="dark"] .public-header {
 @media (max-width: 480px) {
   .auth-card {
     border-radius: var(--radius-lg);
+  }
+}
+
+@keyframes toast-progress {
+  from {
+    width: 100%;
+  }
+
+  to {
+    width: 0%;
   }
 }

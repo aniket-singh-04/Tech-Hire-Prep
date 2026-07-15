@@ -4,13 +4,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../..
 import { Button } from "../../components/ui/Button";
 import { Spinner } from "../../components/ui/Spinner";
 import { authApi } from "../../services/backendApi";
-import { ApiError } from "../../utils/api";
-import toast from "react-hot-toast";
+import { useToast } from "../../context/ToastContext";
+import { getErrorMessage } from "../../utils/notifications";
 
 const VerificationSuccess: React.FC = () => {
   const [searchParams] = useSearchParams();
   const userId = searchParams.get("userId");
   const token = searchParams.get("token");
+  const { pushToast } = useToast();
   const [status, setStatus] = useState<"loading" | "success" | "error">(userId && token ? "loading" : "error");
   const [message, setMessage] = useState("");
 
@@ -21,15 +22,16 @@ const VerificationSuccess: React.FC = () => {
         const payload: any = await authApi.confirmEmailVerification({ userId, token });
         setMessage(payload?.message || "Email verified successfully.");
         setStatus("success");
-        toast.success(payload?.message || "Email verified successfully.")
+        pushToast({ title: "Success", description: payload?.message || "Email verified successfully.", variant: "success" });
       } catch (err) {
-        setMessage(err instanceof ApiError ? err.message : "The verification link is invalid or has expired.");
+        const errorMessage = getErrorMessage(err, "The verification link is invalid or has expired.");
+        setMessage(errorMessage);
         setStatus("error");
-        toast.error(err instanceof ApiError ? err.message : "The verification link is invalid or has expired.")
+        pushToast({ title: "Verification failed", description: errorMessage, variant: "error" });
       }
     };
     void confirm();
-  }, [token, userId]);
+  }, [token, userId, pushToast]);
 
   return (
     <div className="min-h-screen bg-bg flex items-center justify-center p-6">
@@ -46,9 +48,7 @@ const VerificationSuccess: React.FC = () => {
               <CardTitle className="text-2xl font-bold text-fg">Email Verified</CardTitle>
               <CardDescription className="text-muted">{message || "Your email address has been successfully verified."}</CardDescription>
             </CardHeader>
-            <CardContent className="pt-4">
-              <Link to="/dashboard"><Button className="w-full" size="lg">Go to dashboard</Button></Link>
-            </CardContent>
+            <CardContent className="pt-4"><Link to="/dashboard"><Button className="w-full" size="lg">Go to dashboard</Button></Link></CardContent>
           </>
         )}
         {status === "error" && (

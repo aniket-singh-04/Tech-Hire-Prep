@@ -34,7 +34,8 @@ export const requestMatchService = async (input: RequestMatchServiceInput) => {
     // Find eligible online candidates
     const onlineUsersMap = getOnlineUsers();
     const onlineUserIds = Array.from(onlineUsersMap.keys());
-    
+    console.log(onlineUsersMap)
+    console.log(onlineUserIds)
     // Get all profiles of online users
     const onlineProfiles = await profileRepository.findManyByUserIds(onlineUserIds);
 
