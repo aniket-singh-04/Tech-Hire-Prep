@@ -1,7 +1,8 @@
 import InterviewSessionModel, { InterviewSessionStatus } from "../models/interviewSession.model.ts";
 import { MatchRepository } from "../repositories/match.repository.ts";
 import profileRepository from "../repositories/profile.repository.ts";
-import { RequestMatchServiceInput } from "../types/match.types.ts";
+import { UserRepository } from "../repositories/user.repository.ts";
+import { RequestMatchServiceInput, matchStatus } from "../types/match.types.ts";
 import { getOnlineUsers, emitToUser } from "../socket/index.ts";
 import { MatchingEngine } from "../engine/matching.engine.ts";
 import { MATCH_QUEUE } from "../constants/match.constants.ts";
@@ -11,6 +12,7 @@ import { Types } from "mongoose";
 
 export const requestMatchService = async (input: RequestMatchServiceInput) => {
     const userObjectId = new Types.ObjectId(input.userId);
+    const requester = await UserRepository.findById(input.userId);
     const profile = await profileRepository.findByUserId(input.userId);
 
     if (!profile) {
@@ -27,21 +29,25 @@ export const requestMatchService = async (input: RequestMatchServiceInput) => {
         throw new AppError("You already have an active matchmaking request.", 409);
     }
 
+    const expiresAt = new Date(Date.now() + MATCH_QUEUE.REQUEST_EXPIRY_MINUTES * 60000);
     await MatchRepository.expireOldRequests(new Date(Date.now() - MATCH_QUEUE.REQUEST_EXPIRY_MINUTES * 60000));
-    
-    const request = await MatchRepository.createMatchRequest({ userId: userObjectId, ...input.data });
+
+    const request = await MatchRepository.createMatchRequest({
+        userId: userObjectId,
+        ...input.data,
+        expirationTimestamp: expiresAt,
+    } as never);
 
     // Find eligible online candidates
     const onlineUsersMap = getOnlineUsers();
     const onlineUserIds = Array.from(onlineUsersMap.keys());
-    console.log(onlineUsersMap)
-    console.log(onlineUserIds)
+
     // Get all profiles of online users
     const onlineProfiles = await profileRepository.findManyByUserIds(onlineUserIds);
 
     // Get active sessions to know who is busy
     const activeSessions = await InterviewSessionModel.find({
-        status: { $in: [InterviewSessionStatus.SCHEDULED, InterviewSessionStatus.ACTIVE] }
+        status: { $in: [InterviewSessionStatus.SCHEDULED, InterviewSessionStatus.READY, InterviewSessionStatus.JOINED, InterviewSessionStatus.ACTIVE] }
     });
     
     const busyUserIds = new Set<string>();
@@ -65,6 +71,8 @@ export const requestMatchService = async (input: RequestMatchServiceInput) => {
         for (const candidate of eligibleUserIds) {
             emitToUser(candidate.toString(), "interview-request", {
                 requestId: request._id,
+                requesterId: input.userId,
+                requesterName: requester?.name ?? null,
                 interviewType: request.interviewType,
                 preferredRole: request.preferredRole,
                 difficulty: request.difficulty,
@@ -72,6 +80,7 @@ export const requestMatchService = async (input: RequestMatchServiceInput) => {
                 duration: request.duration,
                 description: request.description ?? null,
                 requesterHeadline: profile.headline,
+                expiresAt,
             });
         }
     }
@@ -84,6 +93,7 @@ export const acceptMatchService = async (userId: string, requestId: string) => {
     const userObjectId = new Types.ObjectId(userId);
 
     const sessionId = new Types.ObjectId();
+    const roomId = randomUUID();
 
     const request = await MatchRepository.acceptMatchRequestAtomically(
         requestObjectId,
@@ -95,14 +105,13 @@ export const acceptMatchService = async (userId: string, requestId: string) => {
         throw new AppError("Request is no longer available or already accepted.", 400);
     }
 
-    // Create session
-    const roomId = randomUUID();
+    // Create session in CREATED state. Scheduling happens separately.
     const session = await InterviewSessionModel.create({
         _id: sessionId,
         matchId: requestObjectId,
         interviewerId: userObjectId,
         intervieweeId: request.userId,
-        status: InterviewSessionStatus.SCHEDULED,
+        status: InterviewSessionStatus.CREATED,
         roomId,
     });
 
@@ -111,6 +120,7 @@ export const acceptMatchService = async (userId: string, requestId: string) => {
         requestId,
         sessionId: session._id,
         interviewerId: userObjectId,
+        roomId,
         matchDetails: {
             interviewType: request.interviewType,
             preferredRole: request.preferredRole,
@@ -144,5 +154,58 @@ export const rejectMatchService = async (userId: string, requestId: string) => {
         throw new AppError("Request not found.", 404);
     }
 
+    const allResponded = (updated.notifiedUsers?.length ?? 0) > 0 && updated.notifiedUsers?.every(n => n.status !== "PENDING");
+    if (allResponded && updated.status === matchStatus.SEARCHING) {
+        await MatchRepository.updateRequestStatus(requestObjectId, matchStatus.EXPIRED, {
+            expirationTimestamp: new Date(),
+        });
+    }
+
     return { message: "Rejected successfully" };
 };
+
+export const cancelMatchService = async (userId: string) => {
+    const active = await MatchRepository.findActiveRequestByUserId(new Types.ObjectId(userId));
+
+    if (!active) {
+        throw new AppError("No active matchmaking request found.", 404);
+    }
+
+    const isOwner = active.userId.toString() === userId;
+    if (!isOwner) {
+        throw new AppError("Only the requester can cancel this match.", 403);
+    }
+
+    const updated = await MatchRepository.updateRequestStatus(active._id as Types.ObjectId, matchStatus.CANCELLED, {
+        expirationTimestamp: new Date(),
+    });
+
+    if (updated?.interviewSessionId) {
+        const session = await InterviewSessionModel.findByIdAndUpdate(
+            updated.interviewSessionId,
+            {
+                $set: {
+                    status: InterviewSessionStatus.CANCELLED,
+                    endTime: new Date(),
+                },
+            },
+            { returnDocument: "after" }
+        );
+
+        if (session) {
+            const otherUserId = session.interviewerId.toString() === userId ? session.intervieweeId : session.interviewerId;
+            emitToUser(otherUserId.toString(), "session-cancelled", { sessionId: session._id.toString() });
+        }
+    } else {
+        for (const notified of active.notifiedUsers ?? []) {
+            if (notified.status === "PENDING") {
+                emitToUser(notified.userId.toString(), "interview-closed", { requestId: active._id.toString() });
+            }
+        }
+    }
+
+    return updated;
+};
+
+
+

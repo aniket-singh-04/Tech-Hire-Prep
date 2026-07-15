@@ -5,30 +5,45 @@ import InterviewRequestModel from "../models/match.model.ts";
 type InterviewRequestInput = Pick<IInterview, "userId" | "interviewType" | "preferredRole" | "difficulty" | "preferredLanguage" | "duration">;
 
 export class MatchRepository {
-
   static async createMatchRequest(data: InterviewRequestInput) {
     return InterviewRequestModel.create(data);
   }
 
-  static async findActiveRequestByUserId(
-    userId: Types.ObjectId
-  ) {
-    return InterviewRequestModel.findOne({
-      userId,
-      status: matchStatus.SEARCHING,
-    });
+  static async findSearchingRequests() {
+    return InterviewRequestModel.find({ status: matchStatus.SEARCHING }).sort({ createdAt: -1 });
   }
 
-  static async findRequestById(
-    id: Types.ObjectId
-  ) {
+  static async findActiveRequestByUserId(userId: Types.ObjectId) {
+    return InterviewRequestModel.findOne({
+      userId,
+      status: { $in: [matchStatus.SEARCHING, matchStatus.ASSIGNED] },
+    }).sort({ createdAt: -1 });
+  }
+
+  static async findVisibleActiveRequestByUserId(userId: Types.ObjectId) {
+    return InterviewRequestModel.findOne({
+      $or: [
+        {
+          userId,
+          status: { $in: [matchStatus.SEARCHING, matchStatus.ASSIGNED] },
+        },
+        {
+          status: matchStatus.SEARCHING,
+          "notifiedUsers.userId": userId,
+          "notifiedUsers.status": "PENDING",
+        },
+      ],
+    }).sort({ createdAt: -1 });
+  }
+
+  static async findRequestById(id: Types.ObjectId) {
     return InterviewRequestModel.findById(id);
   }
 
   static async updateRequestStatus(
     requestId: Types.ObjectId,
     status: matchStatus,
-    extraUpdates: any = {}
+    extraUpdates: Record<string, unknown> = {}
   ) {
     return InterviewRequestModel.findByIdAndUpdate(
       requestId,
@@ -54,13 +69,33 @@ export class MatchRepository {
     );
   }
 
+  static async addNotifiedUser(
+    requestId: Types.ObjectId,
+    userId: Types.ObjectId,
+  ) {
+    return InterviewRequestModel.findOneAndUpdate(
+      {
+        _id: requestId,
+        "notifiedUsers.userId": { $ne: userId },
+      },
+      {
+        $push: {
+          notifiedUsers: {
+            userId,
+            status: "PENDING",
+            notifiedAt: new Date(),
+          },
+        },
+      },
+      { returnDocument: "after" }
+    );
+  }
+
   static async acceptMatchRequestAtomically(
     requestId: Types.ObjectId,
     acceptingUserId: Types.ObjectId,
     sessionId: Types.ObjectId
   ) {
-    // Atomically find a request that is still SEARCHING, and the user is in notifiedUsers as PENDING
-    // Then set it to ASSIGNED and lock it.
     return InterviewRequestModel.findOneAndUpdate(
       {
         _id: requestId,

@@ -108,7 +108,7 @@ InterviewRequestSchema.index(
   {
     unique: true,
     partialFilterExpression: {
-      status: "SEARCHING",
+      status: { $in: ["SEARCHING", "ASSIGNED"] },
     },
   }
 );

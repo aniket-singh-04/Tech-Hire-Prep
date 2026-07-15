@@ -82,3 +82,17 @@ export const verifyRefreshToken = (token: string,): JwtRefreshPayload => {
         throw error;
     }
 };
+
+export interface JwtWebrtcPayload {
+    userId: string;
+    sessionId: string;
+    roomId: string;
+    purpose: "webrtc";
+}
+
+export const signWebrtcToken = (payload: JwtWebrtcPayload,): string => {
+    return jwt.sign(payload, ENV.JWT_ACCESS_SECRET, {
+        issuer: `${ACCESS_ISSUER}:webrtc`,
+        expiresIn: "15m",
+    });
+};

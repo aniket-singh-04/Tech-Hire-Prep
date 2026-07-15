@@ -1,4 +1,4 @@
-﻿import type { NextFunction, Request, Response } from "express";
+import type { NextFunction, Request, Response } from "express";
 import rateLimit from "express-rate-limit";
 import { z, type ZodType } from "zod";
 
@@ -57,7 +57,7 @@ export const validateQuery = (schema: ZodType) =>
       });
     }
 
-    req.query = result.data as typeof req.query;
+    Object.assign(req.query as Record<string, unknown>, result.data as Record<string, unknown>);
 
     next();
   };
@@ -85,3 +85,5 @@ export const passwordResetLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+

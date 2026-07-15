@@ -112,6 +112,15 @@ export interface InterviewRequest {
   status: InterviewRequestStatus | 'idle' | 'queued';
   sessionId?: string;
   expiresAt?: string;
+  requesterId?: string;
+  requesterName?: string;
+  interviewType?: string;
+  preferredRole?: string;
+  difficulty?: string;
+  preferredLanguage?: string;
+  duration?: number;
+  description?: string;
+  requesterHeadline?: string;
 }
 
 // ─── Interview Session ────────────────────────────────────────────────────────
@@ -212,3 +221,4 @@ export interface ApiResponse<T = unknown> {
   data: T;
   message?: string;
 }
+

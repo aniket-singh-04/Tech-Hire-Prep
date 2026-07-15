@@ -2,6 +2,12 @@ import { Types } from "mongoose";
 import { Payment } from "../models/payment.model.ts";
 import { IPayment, PaymentStatus } from "../types/payment.types.ts";
 
+const ACTIVE_PAYMENT_STATUSES = [
+  PaymentStatus.CREATED,
+  PaymentStatus.PENDING,
+  PaymentStatus.PAID,
+];
+
 export class PaymentRepository {
   public static async create(data: Partial<IPayment>): Promise<IPayment> {
     const payment = new Payment(data);
@@ -18,6 +24,14 @@ export class PaymentRepository {
 
   public static async findByPaymentId(paymentId: string): Promise<IPayment | null> {
     return await Payment.findOne({ paymentId }).exec();
+  }
+
+  public static async findActiveByUserAndSession(userId: string, sessionId: string): Promise<IPayment | null> {
+    return await Payment.findOne({
+      userId: new Types.ObjectId(userId),
+      "metadata.sessionId": sessionId,
+      status: { $in: ACTIVE_PAYMENT_STATUSES },
+    }).sort({ createdAt: -1 }).exec();
   }
 
   public static async updateStatus(

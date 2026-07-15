@@ -9,6 +9,7 @@ import { io, Socket } from 'socket.io-client';
 import { Badge } from '../../components/ui/Badge';
 import { useToast } from '../../context/ToastContext';
 import { getErrorMessage } from '../../utils/notifications';
+import { sessionApi, webrtcApi } from '../../services/backendApi';
 
 export const InterviewRoom: React.FC = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -20,34 +21,58 @@ export const InterviewRoom: React.FC = () => {
   const [output, setOutput] = useState('');
   const [isRunning, setIsRunning] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
+  const [roomReady, setRoomReady] = useState(false);
 
   const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
-    const fetchSession = async () => {
+    let mounted = true;
+
+    const initializeRoom = async () => {
+      if (!sessionId) return;
+
       try {
-        const res = await api.get<{ data?: { code?: string; language?: string } }>(`/api/v1/editor/session/${sessionId}`);
-        if (res.data?.code) setCode(res.data.code);
-        if (res.data?.language) setLanguage(res.data.language);
+        await sessionApi.join(sessionId);
+        await webrtcApi.createToken({ sessionId });
+        await webrtcApi.createRoom({ sessionId });
+        if (mounted) {
+          setRoomReady(true);
+        }
+      } catch (err) {
+        pushToast({ title: 'Room access failed', description: getErrorMessage(err, 'Unable to join this interview room'), variant: 'error' });
+        navigate(`/sessions/${sessionId}`);
+        return;
+      }
+
+      try {
+        const res = await api.get<{ code?: string; language?: string }>(`/api/v1/editor/session/${sessionId}`);
+        if (res.code) setCode(res.code);
+        if (res.language) setLanguage(res.language);
       } catch (err) {
         pushToast({ title: 'Failed to load session', description: getErrorMessage(err, 'Failed to load session code'), variant: 'error' });
       }
+
+      const token = localStorage.getItem('token');
+      const socketUrl = import.meta.env.VITE_WS_URL || 'http://localhost:4400';
+
+      socketRef.current = io(socketUrl, { auth: { token }, query: { sessionId } });
+
+      socketRef.current.on('connect', () => {
+        setIsConnected(true);
+        socketRef.current?.emit('join-room', { roomId: sessionId });
+      });
+      socketRef.current.on('disconnect', () => setIsConnected(false));
+      socketRef.current.on('code-update', (newCode: string) => setCode(newCode));
     };
-    fetchSession();
 
-    const token = localStorage.getItem('token');
-    const socketUrl = import.meta.env.VITE_WS_URL || 'http://localhost:4400';
-
-    socketRef.current = io(socketUrl, { auth: { token }, query: { sessionId } });
-
-    socketRef.current.on('connect', () => setIsConnected(true));
-    socketRef.current.on('disconnect', () => setIsConnected(false));
-    socketRef.current.on('code-update', (newCode: string) => setCode(newCode));
+    initializeRoom();
 
     return () => {
+      mounted = false;
+      socketRef.current?.emit('leave-room', { roomId: sessionId });
       socketRef.current?.disconnect();
     };
-  }, [sessionId, pushToast]);
+  }, [navigate, pushToast, sessionId]);
 
   const handleCodeChange = (value: string | undefined) => {
     const newCode = value || '';
@@ -62,8 +87,8 @@ export const InterviewRoom: React.FC = () => {
     setIsRunning(true);
     setOutput('Running...');
     try {
-      const res = await api.post<{ data?: { output?: string } }>(`/api/v1/editor/session/${sessionId}/run`, { code, language });
-      setOutput(res.data?.output || 'Execution successful but no output returned.');
+      const res = await api.post<{ output?: string }>(`/api/v1/editor/session/${sessionId}/run`, { code, language });
+      setOutput(res.output || 'Execution successful but no output returned.');
     } catch (err: unknown) {
       const errorMessage = getErrorMessage(err, 'Execution failed.');
       pushToast({ title: 'Execution failed', description: errorMessage, variant: 'error' });
@@ -88,6 +113,7 @@ export const InterviewRoom: React.FC = () => {
             <span className={`w-2.5 h-2.5 rounded-full ${isConnected ? 'bg-success' : 'bg-danger'}`} />
             <h1 className="font-semibold text-text text-sm sm:text-base">Interview Room</h1>
           </div>
+          <Badge variant={roomReady ? 'green' : 'yellow'}>{roomReady ? 'Room ready' : 'Joining...'}</Badge>
           <Badge variant="gray">{sessionId}</Badge>
         </div>
 

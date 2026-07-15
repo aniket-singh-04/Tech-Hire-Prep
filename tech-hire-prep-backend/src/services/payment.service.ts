@@ -6,11 +6,27 @@ import { PaymentRepository } from "../repositories/payment.repository.ts";
 import { Currency, PaymentGateway, PaymentStatus } from "../types/payment.types.ts";
 import { AppError } from "../utils/appError.ts";
 import { ENV } from "../config/envConfig.ts";
+import InterviewSessionModel, { InterviewSessionStatus } from "../models/interviewSession.model.ts";
 
 const razorpay = new Razorpay({
   key_id: ENV.RAZORPAY_KEY_ID || "",
   key_secret: ENV.RAZORPAY_KEY_SECRET || "",
 });
+
+const promoteSessionAfterPayment = async (payment: any) => {
+  const sessionId = payment?.metadata?.sessionId;
+  if (!sessionId) return;
+
+  const session = await InterviewSessionModel.findById(sessionId);
+  if (!session) return;
+  if ([InterviewSessionStatus.COMPLETED, InterviewSessionStatus.CANCELLED].includes(session.status)) return;
+
+  if (session.status === InterviewSessionStatus.CREATED || session.status === InterviewSessionStatus.SCHEDULED) {
+    session.status = InterviewSessionStatus.READY;
+    session.readyAt = session.readyAt ?? new Date();
+    await session.save();
+  }
+};
 
 export const createOrderService = async (
   userId: string,
@@ -21,13 +37,26 @@ export const createOrderService = async (
   const receiptId = `receipt_${Date.now()}_${userId}`;
 
   try {
+    if (sessionId) {
+      const existing = await PaymentRepository.findActiveByUserAndSession(userId, sessionId);
+      if (existing) {
+        return {
+          orderId: existing.orderId,
+          amount: existing.amount * 100,
+          currency: existing.currency,
+          paymentId: existing._id,
+          status: existing.status,
+        };
+      }
+    }
+
     const order = await razorpay.orders.create({
       amount: amountInPaise,
       currency: PAYMENT_CONSTANTS.CURRENCY_INR,
       receipt: receiptId,
     });
 
-    // Merge sessionId into metadata so we can link payment → session later
+    // Merge sessionId into metadata so we can link payment ? session later
     const resolvedMetadata: Record<string, unknown> = {
       ...metadata,
       ...(sessionId ? { sessionId } : {}),
@@ -49,6 +78,7 @@ export const createOrderService = async (
       amount: order.amount,
       currency: order.currency,
       paymentId: payment._id,
+      status: payment.status,
     };
   } catch (error: any) {
     throw new AppError(`Failed to create Razorpay order: ${error.message}`, 500);
@@ -95,10 +125,13 @@ export const verifyPaymentService = async (
     razorpaySignature
   );
 
-  return await PaymentRepository.updateStatus(
+  const updated = await PaymentRepository.updateStatus(
     razorpayOrderId,
     PaymentStatus.PAID
   );
+
+  await promoteSessionAfterPayment(updated);
+  return updated;
 };
 
 
@@ -128,7 +161,7 @@ export const handleWebhookService = async (
     throw new AppError("Invalid webhook signature", 400);
   }
 
-  // Parse after verification — safe to use the parsed object now
+  // Parse after verification ? safe to use the parsed object now
   const payload = JSON.parse(rawBody) as Record<string, unknown>;
   const event = payload.event;
 
@@ -148,10 +181,11 @@ export const handleWebhookService = async (
         "webhook_verified"
       );
 
-      await PaymentRepository.updateStatus(
+      const updated = await PaymentRepository.updateStatus(
         orderId,
         PaymentStatus.PAID
       );
+      await promoteSessionAfterPayment(updated);
     }
   }
 

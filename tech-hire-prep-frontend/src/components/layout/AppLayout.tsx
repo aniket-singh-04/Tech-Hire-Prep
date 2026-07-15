@@ -1,22 +1,174 @@
-import React, { useState } from "react";
-import { Link, NavLink, useLocation } from "react-router-dom";
+import React, { useEffect, useRef, useState } from "react";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { ThemeToggle } from "../ui/ThemeToggle";
 import { Avatar } from "../ui/Avatar";
 import { FiMenu, FiX, FiLogOut } from "react-icons/fi";
 import { navLinks, tabs } from "../../constants/icon";
 import { FaCaretDown, FaCaretRight } from "react-icons/fa";
+import { Modal } from "../ui/Modal";
+import { io, type Socket } from "socket.io-client";
+import { matchApi } from "../../services/backendApi";
+import { useToast } from "../../context/ToastContext";
+import { getErrorMessage } from "../../utils/notifications";
+import type { InterviewRequest } from "../../types";
+import { IncomingInterviewRequest } from "../match/IncomingInterviewRequest";
 
 export const AppLayout: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const { user, logout } = useAuth();
+  const { pushToast } = useToast();
+  const navigate = useNavigate();
   const location = useLocation();
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [isProfileExpanded, setIsProfileExpanded] = useState(false);
+  const [incomingRequest, setIncomingRequest] = useState<InterviewRequest | null>(null);
+  const [acceptingRequest, setAcceptingRequest] = useState(false);
+  const [rejectingRequest, setRejectingRequest] = useState(false);
+  const socketRef = useRef<Socket | null>(null);
 
   const handleLogout = async () => {
     await logout();
+  };
+
+  useEffect(() => {
+    if (!user?.id) {
+      setIncomingRequest(null);
+      socketRef.current?.disconnect();
+      socketRef.current = null;
+      return;
+    }
+
+    let active = true;
+    let pollingId: number | null = null;
+
+    const syncActiveRequest = async () => {
+      try {
+        const response = await matchApi.getQueueStatus();
+        const request = (response as any)?.data ?? response;
+        if (!active) return;
+
+        if (request?.status === "pending" && request?.requesterId && String(request.requesterId) !== user.id) {
+          setIncomingRequest(request);
+        } else if (request?.status === "matched" && request?.sessionId) {
+          setIncomingRequest(null);
+          if (String(request.requesterId ?? "") === user.id) {
+            navigate(`/sessions/${request.sessionId}`);
+          }
+        } else {
+          setIncomingRequest(null);
+        }
+      } catch {
+        if (active) {
+          setIncomingRequest(null);
+        }
+      }
+    };
+
+    void syncActiveRequest();
+    pollingId = window.setInterval(() => {
+      void syncActiveRequest();
+    }, 5000);
+
+    const token = localStorage.getItem("token");
+    if (!token) {
+      return () => {
+        active = false;
+        if (pollingId) window.clearInterval(pollingId);
+      };
+    }
+
+    const socketUrl = import.meta.env.VITE_WS_URL || "http://localhost:4400";
+    const socket = io(socketUrl, { auth: { token }, query: { scope: "app-layout" } });
+    socketRef.current = socket;
+
+    socket.on("interview-request", (payload: any) => {
+      const request: InterviewRequest = {
+        requestId: String(payload.requestId),
+        status: "pending",
+        requesterId: payload.requesterId ? String(payload.requesterId) : undefined,
+        requesterName: payload.requesterName ?? undefined,
+        interviewType: payload.interviewType ?? undefined,
+        preferredRole: payload.preferredRole ?? undefined,
+        difficulty: payload.difficulty ?? undefined,
+        preferredLanguage: payload.preferredLanguage ?? undefined,
+        duration: payload.duration ?? undefined,
+        description: payload.description ?? undefined,
+        requesterHeadline: payload.requesterHeadline ?? undefined,
+      };
+
+      if (request.requesterId && request.requesterId !== user.id) {
+        setIncomingRequest(request);
+        pushToast({
+          title: "Interview request received",
+          description: "A peer sent you a mock interview request.",
+          variant: "success",
+        });
+      }
+    });
+
+    socket.on("interview-assigned", (payload: any) => {
+      setIncomingRequest(null);
+      if (payload?.sessionId) {
+        pushToast({
+          title: "Match accepted",
+          description: "Your interview has been assigned.",
+          variant: "success",
+        });
+        navigate(`/sessions/${payload.sessionId}`);
+      }
+    });
+
+    socket.on("interview-closed", () => {
+      setIncomingRequest(null);
+      pushToast({
+        title: "Request closed",
+        description: "That interview request was no longer available.",
+        variant: "info",
+      });
+    });
+
+    return () => {
+      active = false;
+      if (pollingId) window.clearInterval(pollingId);
+      socket.off("interview-request");
+      socket.off("interview-assigned");
+      socket.off("interview-closed");
+      socket.disconnect();
+      if (socketRef.current === socket) {
+        socketRef.current = null;
+      }
+    };
+  }, [navigate, pushToast, user?.id]);
+
+  const handleAcceptRequest = async () => {
+    if (!incomingRequest?.requestId) return;
+    try {
+      setAcceptingRequest(true);
+      const session = await matchApi.acceptMatch(incomingRequest.requestId);
+      setIncomingRequest(null);
+      pushToast({ title: "Accepted", description: "Interview request accepted.", variant: "success" });
+      navigate(`/sessions/${session.id}`);
+    } catch (error) {
+      pushToast({ title: "Accept failed", description: getErrorMessage(error, "Failed to accept the interview request."), variant: "error" });
+    } finally {
+      setAcceptingRequest(false);
+    }
+  };
+
+  const handleRejectRequest = async () => {
+    if (!incomingRequest?.requestId) return;
+    try {
+      setRejectingRequest(true);
+      await matchApi.rejectMatch(incomingRequest.requestId);
+      setIncomingRequest(null);
+      pushToast({ title: "Rejected", description: "Interview request rejected.", variant: "success" });
+    } catch (error) {
+      pushToast({ title: "Reject failed", description: getErrorMessage(error, "Failed to reject the interview request."), variant: "error" });
+    } finally {
+      setRejectingRequest(false);
+    }
   };
 
   return (
@@ -123,6 +275,18 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({
           <div className="max-w-6xl mx-auto">{children}</div>
         </main>
       </div>
+
+      {incomingRequest && incomingRequest.requesterId !== user?.id && (
+        <Modal isOpen onClose={() => setIncomingRequest(null)} title="Incoming interview request" size="xl">
+          <IncomingInterviewRequest
+            request={incomingRequest}
+            onAccept={handleAcceptRequest}
+            onReject={handleRejectRequest}
+            accepting={acceptingRequest}
+            rejecting={rejectingRequest}
+          />
+        </Modal>
+      )}
 
       {isMobileNavOpen && (
         <div className="md:hidden">
@@ -231,4 +395,6 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({
     </div>
   );
 };
+
+
 

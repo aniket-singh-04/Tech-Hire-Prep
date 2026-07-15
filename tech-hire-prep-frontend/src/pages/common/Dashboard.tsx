@@ -1,45 +1,119 @@
-import { FiCalendar, FiPlayCircle, FiArrowRight, FiTrendingUp, FiUsers, FiClock, FiMapPin, FiMessageSquare } from "react-icons/fi";
+import React, { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { FiArrowRight, FiCalendar, FiClock, FiMapPin, FiMessageSquare, FiPlayCircle, FiTrendingUp, FiUsers } from 'react-icons/fi';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
-import type { Session } from '../../types';
-import { sessionApi } from '../../services/sessionApi';
-import { Link, useNavigate } from "react-router-dom";
+import { Badge } from '../../components/ui/Badge';
+import { Button } from '../../components/ui/Button';
 import { Spinner } from '../../components/ui/Spinner';
 import { useAuth } from '../../context/AuthContext';
-import { Button } from '../../components/ui/Button';
-import React, { useEffect, useState } from 'react';
-import { Badge } from '../../components/ui/Badge';
+import { paymentApi, sessionApi } from '../../services/backendApi';
+import type { Session } from '../../types';
 
 const statusColor: Record<string, 'blue' | 'green' | 'yellow' | 'red' | 'gray' | 'purple'> = {
-  live: 'green', matched: 'blue', scheduled: 'purple', completed: 'gray', cancelled: 'red', pending: 'yellow',
+  live: 'green',
+  matched: 'blue',
+  scheduled: 'purple',
+  completed: 'gray',
+  cancelled: 'red',
+  pending: 'yellow',
 };
 
-const StatusBadge: React.FC<{ status: string }> = ({ status }) => (
-  <Badge variant={statusColor[status] ?? 'gray'} className="capitalize">{status}</Badge>
-);
+type PaymentState = 'paid' | 'pending' | 'failed' | 'refunded' | 'cancelled' | 'due';
+
+const paymentColor: Record<PaymentState, 'green' | 'yellow' | 'red' | 'gray'> = {
+  paid: 'green',
+  pending: 'yellow',
+  failed: 'red',
+  refunded: 'gray',
+  cancelled: 'red',
+  due: 'yellow',
+};
 
 const formatDate = (d?: string) => d ? new Date(d).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '?';
+
+const normalizePaymentState = (status?: string): PaymentState | undefined => {
+  switch ((status ?? '').toUpperCase()) {
+    case 'PAID':
+      return 'paid';
+    case 'PENDING':
+    case 'CREATED':
+      return 'pending';
+    case 'FAILED':
+      return 'failed';
+    case 'REFUNDED':
+      return 'refunded';
+    case 'CANCELLED':
+      return 'cancelled';
+    default:
+      return undefined;
+  }
+};
+
+const buildPaymentMap = (items: any[]) => {
+  const bySessionId: Record<string, PaymentState> = {};
+  for (const item of items) {
+    const sessionId = String(item?.metadata?.sessionId ?? item?.sessionId ?? '');
+    if (!sessionId || bySessionId[sessionId]) continue;
+    const state = normalizePaymentState(item?.status);
+    if (state) bySessionId[sessionId] = state;
+  }
+  return bySessionId;
+};
+
+const resolvePaymentBadge = (session: Session, paymentState?: PaymentState) => {
+  const requiresPayment = ['matched', 'scheduled', 'live'].includes(session.status);
+  if (paymentState === 'paid') return { label: 'Paid', variant: paymentColor.paid };
+  if (paymentState === 'failed') return { label: 'Payment failed', variant: paymentColor.failed };
+  if (paymentState === 'refunded') return { label: 'Refunded', variant: paymentColor.refunded };
+  if (paymentState === 'cancelled') return { label: 'Payment cancelled', variant: paymentColor.cancelled };
+  if (paymentState === 'pending') return { label: 'Payment pending', variant: paymentColor.pending };
+  if (requiresPayment) return { label: 'Payment due', variant: paymentColor.due };
+  return null;
+};
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [upcoming, setUpcoming] = useState<Session[]>([]);
+  const [paymentBySession, setPaymentBySession] = useState<Record<string, PaymentState>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let active = true;
+
     const load = async () => {
       try {
-        const sessions: any = await sessionApi.getUpcoming();
-        const normalized = Array.isArray(sessions) ? sessions : Array.isArray(sessions?.data) ? sessions.data : [];
-        setUpcoming(normalized);
+        const [sessionsRes, paymentsRes] = await Promise.all([
+          sessionApi.getUpcoming(),
+          paymentApi.getHistory({ limit: 100, page: 1 }),
+        ]);
+
+        const sessions = Array.isArray(sessionsRes) ? sessionsRes : Array.isArray((sessionsRes as any)?.data) ? (sessionsRes as any).data : [];
+        const paymentsPayload = Array.isArray(paymentsRes)
+          ? paymentsRes
+          : Array.isArray((paymentsRes as any)?.data)
+            ? (paymentsRes as any).data
+            : Array.isArray((paymentsRes as any)?.data?.data)
+              ? (paymentsRes as any).data.data
+              : [];
+
+        if (!active) return;
+        setUpcoming(sessions);
+        setPaymentBySession(buildPaymentMap(paymentsPayload));
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     };
+
     load();
+    return () => {
+      active = false;
+    };
   }, []);
 
   const liveSession = upcoming.find((s) => s.status === 'live');
   const scheduled = upcoming.filter((s) => s.status === 'scheduled');
+  const paymentDueCount = upcoming.filter((s) => ['matched', 'scheduled', 'live'].includes(s.status) && paymentBySession[s.id] !== 'paid').length;
 
   if (loading) {
     return <div className="flex justify-center items-center h-64"><Spinner size="lg" /></div>;
@@ -66,6 +140,17 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
       </section>
+
+      {paymentDueCount > 0 && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 flex items-center gap-4">
+          <div className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0" />
+          <div className="flex-1">
+            <p className="font-semibold text-amber-900 text-sm">{paymentDueCount} session{paymentDueCount === 1 ? '' : 's'} need payment.</p>
+            <p className="text-xs text-amber-700 mt-0.5">Open a session to complete checkout and unlock the interview room.</p>
+          </div>
+          <Button size="sm" onClick={() => navigate('/sessions')} className="bg-amber-600 hover:bg-amber-700 shrink-0">Review</Button>
+        </div>
+      )}
 
       {liveSession && (
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 flex items-center gap-4">
@@ -114,14 +199,19 @@ const Dashboard: React.FC = () => {
               <div className="divide-y divide-slate-100">
                 {upcoming.slice(0, 5).map((session) => {
                   const myRole = session.participants[0]?.role ?? 'candidate';
+                  const paymentState = paymentBySession[session.id];
+                  const paymentBadge = resolvePaymentBadge(session, paymentState);
                   return (
                     <div key={session.id} className="flex items-center gap-3 py-3 cursor-pointer hover:bg-bg rounded-lg transition-colors" onClick={() => navigate(`/sessions/${session.id}`)}>
-                      <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center shrink-0 text-sm">{myRole === 'candidate' ? '??' : '?????'}</div>
+                      <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center shrink-0 text-sm">{myRole === 'candidate' ? 'C' : 'I'}</div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-text text-sm capitalize">{myRole} Interview</p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-medium text-text text-sm capitalize">{myRole} Interview</p>
+                          <Badge variant={statusColor[session.status] ?? 'gray'} className="capitalize">{session.status}</Badge>
+                          {paymentBadge && <Badge variant={paymentBadge.variant}>{paymentBadge.label}</Badge>}
+                        </div>
                         <p className="text-xs text-muted mt-0.5">{formatDate(session.scheduledAt ?? session.startedAt)}</p>
                       </div>
-                      <StatusBadge status={session.status} />
                     </div>
                   );
                 })}
@@ -175,3 +265,4 @@ const Dashboard: React.FC = () => {
 };
 
 export default Dashboard;
+
