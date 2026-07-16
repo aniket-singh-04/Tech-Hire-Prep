@@ -1,5 +1,6 @@
 import http from "http";
 import app from "./app.ts";
+import dns from "node:dns";
 import { ENV } from "./config/envConfig.ts";
 import { connectDB } from "./config/database.ts";
 import { initSocketServer } from "./socket/index.ts";
@@ -7,6 +8,8 @@ import { initSocketServer } from "./socket/index.ts";
 /* -------------------------------------------------------------------------- */
 /*                      Process-Level Error Guards                             */
 /* -------------------------------------------------------------------------- */
+
+dns.setServers(["1.1.1.1", "8.8.8.8"]);
 
 process.on("uncaughtException", (error: Error) => {
   console.error("[FATAL] Uncaught Exception:", error);
