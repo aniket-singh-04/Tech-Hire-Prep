@@ -67,7 +67,7 @@ export const validateQuery = (schema: ZodType) =>
 
 export const authStartLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 8,
+  limit: 80,
   standardHeaders: true,
   legacyHeaders: false,
 });

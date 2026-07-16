@@ -3,6 +3,8 @@ import { UserRepository } from "../repositories/user.repository.ts";
 import { AppError } from "../utils/appError.ts";
 import z from "zod";
 
+const time24HourSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Time must be in 24-hour HH:mm format.");
+
 export const assertUniqueUserEmail = async (email: string, excludeUserId?: string) => {
     const existingUser = await UserRepository.existsByEmail(
         email
@@ -44,8 +46,8 @@ export const profileUpdateSchema = z.object({
     availability: z.array(
         z.object({
             day: z.enum(WeekDay),
-            startTime: z.string(),
-            endTime: z.string(),
+            startTime: time24HourSchema,
+            endTime: time24HourSchema,
         })
     ).optional(),
 }).strict();
@@ -63,12 +65,14 @@ export const availabilityUpdateSchema = z.object({
     availability: z.array(
         z.object({
             day: z.enum(WeekDay),
-            startTime: z.string(),
-            endTime: z.string(),
+            startTime: time24HourSchema,
+            endTime: time24HourSchema,
         })
     ),
 }).strict();
 
 export type SaveAvatarDto = z.infer<typeof saveAvatarSchema>;
 export type UpdateAvailabilityDto = z.infer<typeof availabilityUpdateSchema>;
+
+
 

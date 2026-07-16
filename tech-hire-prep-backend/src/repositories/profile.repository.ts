@@ -86,6 +86,13 @@ class ProfileRepository {
         );
     }
 
+
+    async othersCandidateProfile(userId: string) {
+        return await Profile.find({
+            userId: { $ne: userId }
+        });
+    }
+
     async deleteByUserId(userId: string) {
         return Profile.findOneAndDelete({ userId });
     }

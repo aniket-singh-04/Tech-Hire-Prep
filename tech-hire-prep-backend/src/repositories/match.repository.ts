@@ -100,8 +100,6 @@ export class MatchRepository {
       {
         _id: requestId,
         status: matchStatus.SEARCHING,
-        "notifiedUsers.userId": acceptingUserId,
-        "notifiedUsers.status": "PENDING"
       },
       {
         $set: {
@@ -110,8 +108,6 @@ export class MatchRepository {
           interviewSessionId: sessionId,
           acceptedTime: new Date(),
           assignmentTimestamp: new Date(),
-          "notifiedUsers.$.status": "ACCEPTED",
-          "notifiedUsers.$.respondedAt": new Date()
         }
       },
       { returnDocument: "after" }
@@ -155,3 +151,4 @@ export class MatchRepository {
     );
   }
 }
+

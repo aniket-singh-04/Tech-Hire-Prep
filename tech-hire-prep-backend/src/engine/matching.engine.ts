@@ -14,13 +14,13 @@ export class MatchingEngine {
     
     // Check if the current time fits within an availability slot "HH:mm"
     const currentTimeStr = new Date().toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit" });
-
+    console.log(currentTimeStr)
     return allProfiles.filter(profile => {
-      // 1. Cannot match with oneself
-      if (profile.userId.toString() === request.userId.toString()) return false;
+      // // 1. Cannot match with oneself
+      // if (profile.userId.toString() === request.userId.toString()) return false;
 
-      // 2. User must be online
-      if (!onlineUsersMap.has(profile.userId.toString())) return false;
+      // // 2. User must be online
+      // if (!onlineUsersMap.has(profile.userId.toString())) return false;
 
       // 3. User must not be occupied in an active session
       if (activeSessionUserIds.includes(profile.userId.toString())) return false;

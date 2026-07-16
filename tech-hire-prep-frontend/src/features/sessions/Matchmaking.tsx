@@ -40,6 +40,7 @@ export const Matchmaking: React.FC = () => {
 
   const loadStatus = useCallback(async () => {
     const status: any = await matchApi.getQueueStatus();
+    console.log(status)
     const s = (status?.data ?? status) as InterviewRequest | null;
     setQueueStatus(s);
   }, []);

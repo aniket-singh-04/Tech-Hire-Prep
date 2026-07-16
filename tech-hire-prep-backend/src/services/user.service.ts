@@ -12,6 +12,10 @@ import { UserIdDto } from "../validators/auth.validation.ts";
 import { UserStatus } from "../types/user.types.ts";
 import { SessionRepository } from "../repositories/session.repository.ts";
 const ALLOWED_IMAGE_CONTENT_TYPES = new Set(["image/jpeg", "image/png", "image/webp",]);
+const timeToMinutes = (value: string) => {
+    const [hours = "0", minutes = "0"] = value.split(":");
+    return (Number(hours) * 60) + Number(minutes);
+};
 
 export const getMyPublicProfileService = async (username: string) => {
     const profile = await profileRepository.findPublicProfile(username);
@@ -173,6 +177,16 @@ export const saveUserAvatarService = async (req: Request, payload: SaveAvatarDto
 };
 
 export const updateMyAvailabilityService = async (userId: string, payload: UpdateAvailabilityDto) => {
+    if (payload.availability.length === 0) {
+        throw new AppError("At least one availability slot is required.", 400);
+    }
+
+    for (const slot of payload.availability) {
+        if (timeToMinutes(slot.startTime) >= timeToMinutes(slot.endTime)) {
+            throw new AppError(`${slot.day} must start before it ends.`, 400);
+        }
+    }
+
     const profile = await profileRepository.updateAvailability(userId, payload.availability);
     if (!profile) {
         throw new AppError("Profile is not found", 404);
@@ -180,7 +194,7 @@ export const updateMyAvailabilityService = async (userId: string, payload: Updat
     const score = computeCompletionScore(profile);
     const updatedProfile = await profileRepository.updateProfileCompletion(userId, score, score === 100 ? true : false);
     return updatedProfile;
-}
+};
 
 export const deleteAccountService = async (payload: UserIdDto) => {
     const user = await UserRepository.updateStatus(payload.userId, UserStatus.DELETED);
@@ -190,3 +204,8 @@ export const deleteAccountService = async (payload: UserIdDto) => {
     const session = await SessionRepository.revokeAllUserSessions(payload.userId);
     return;
 }
+
+
+
+
+

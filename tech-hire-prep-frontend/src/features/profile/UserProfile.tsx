@@ -1,4 +1,3 @@
-import { TargetRole, ExperienceLevel, WeekDay } from "../../types";
 import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
@@ -12,6 +11,7 @@ import { Avatar } from "../../components/ui/Avatar";
 import { Spinner } from "../../components/ui/Spinner";
 import { Badge } from "../../components/ui/Badge";
 import type { IAvailabilitySlot, ISocialLinks, Profile } from "../../types";
+import { TargetRole, ExperienceLevel, WeekDay } from "../../types";
 import { Select } from "../../components/ui/Select";
 import { BADGE_LIST, STATS, type Tab } from "../../constants/icon";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../../components/ui/Card";
@@ -19,6 +19,22 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 const DAYS = Object.values(WeekDay);
 const ROLES = Object.values(TargetRole);
 const EXPERIENCE_LEVELS = Object.values(ExperienceLevel);
+const DEFAULT_START_TIME = "09:00";
+const DEFAULT_END_TIME = "17:00";
+const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+const normalizeTime = (value?: string) => {
+  if (!value) return DEFAULT_START_TIME;
+  const match = value.match(timePattern);
+  return match ? value : DEFAULT_START_TIME;
+};
+
+const emptyAvailability = (): IAvailabilitySlot[] => [];
+
+const sortAvailability = (slots: IAvailabilitySlot[]) => {
+  const order = new Map(DAYS.map((day, index) => [day, index]));
+  return [...slots].sort((a, b) => (order.get(a.day) ?? 0) - (order.get(b.day) ?? 0));
+};
 
 export const UserProfile: React.FC = () => {
   const { user } = useAuth();
@@ -45,7 +61,7 @@ export const UserProfile: React.FC = () => {
   const [college, setCollege] = useState("");
   const [branch, setBranch] = useState("");
   const [graduationYear, setGraduationYear] = useState<number>(2020);
-  const [selectedDays, setSelectedDays] = useState<IAvailabilitySlot[]>([]);
+  const [selectedDays, setSelectedDays] = useState<IAvailabilitySlot[]>(emptyAvailability());
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -63,7 +79,11 @@ export const UserProfile: React.FC = () => {
         setCollege(profileData.college || "");
         setBranch(profileData.branch || "");
         setGraduationYear(profileData.graduationYear || 2020);
-        setSelectedDays(profileData.availability || []);
+        setSelectedDays(sortAvailability((profileData.availability || []).map((slot) => ({
+          ...slot,
+          startTime: normalizeTime(slot.startTime),
+          endTime: normalizeTime(slot.endTime),
+        }))));
         setSocialLinks(profileData.socialLinks || {});
       } catch (err) {
         pushToast({ title: "Profile load failed", description: getErrorMessage(err, "Failed to load profile"), variant: "error" });
@@ -103,15 +123,43 @@ export const UserProfile: React.FC = () => {
   };
 
   const handleSaveAvailability = async () => {
+    const cleaned = selectedDays.map((slot) => ({
+      ...slot,
+      startTime: normalizeTime(slot.startTime),
+      endTime: normalizeTime(slot.endTime),
+    }));
+
+    for (const slot of cleaned) {
+      if (slot.startTime >= slot.endTime) {
+        pushToast({ title: "Invalid time range", description: `${slot.day} must start before it ends.`, variant: "error" });
+        return;
+      }
+    }
+
     setIsSaving(true);
     try {
-      await profileApi.updateAvailability(selectedDays);
+      await profileApi.updateAvailability(cleaned);
+      setSelectedDays(sortAvailability(cleaned));
       showSuccess();
     } catch (error) {
       pushToast({ title: "Availability update failed", description: getErrorMessage(error, "Failed to update availability."), variant: "error" });
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const toggleDay = (day: WeekDay) => {
+    setSelectedDays((prev) => {
+      const exists = prev.find((slot) => slot.day === day);
+      if (exists) {
+        return prev.filter((slot) => slot.day !== day);
+      }
+      return sortAvailability([...prev, { day, startTime: DEFAULT_START_TIME, endTime: DEFAULT_END_TIME }]);
+    });
+  };
+
+  const updateAvailabilityField = (day: WeekDay, field: "startTime" | "endTime", value: string) => {
+    setSelectedDays((prev) => sortAvailability(prev.map((slot) => slot.day === day ? { ...slot, [field]: value } : slot)));
   };
 
   const handleSocialChange = (field: keyof ISocialLinks, value: string) => {
@@ -125,7 +173,7 @@ export const UserProfile: React.FC = () => {
   return (
     <div className="flex flex-col md:flex-row gap-6 animate-fade-in">
       <div className="flex-1 space-y-6 min-w-0">
-        {saveSuccess && <div className="p-3 bg-success/10 text-success text-sm rounded-lg border border-success/20 font-medium">? Changes saved successfully!</div>}
+        {saveSuccess && <div className="p-3 bg-success/10 text-success text-sm rounded-lg border border-success/20 font-medium">Changes saved successfully!</div>}
 
         {activeTab === "personal" && (
           <Card>
@@ -165,18 +213,68 @@ export const UserProfile: React.FC = () => {
 
         {activeTab === "availability" && (
           <Card>
-            <CardHeader><CardTitle>Availability</CardTitle><CardDescription>Select the days you are typically available for mock interviews.</CardDescription></CardHeader>
-            <CardContent className="space-y-4">
+            <CardHeader>
+              <CardTitle>Availability</CardTitle>
+              <CardDescription>Select days and set start/end times in 24-hour HH:mm format.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
               <div className="flex flex-wrap gap-3">
-                {DAYS.map((day) => (
-                  <button key={day} type="button" onClick={() => { if (selectedDays.some((s) => s.day === day)) { setSelectedDays(selectedDays.filter((s) => s.day !== day)); } else { setSelectedDays([...selectedDays, { day, startTime: '09:00', endTime: '17:00' }]); } }} className={`px-4 py-2 rounded-full text-sm font-semibold border transition-colors ${selectedDays.some((s) => s.day === day) ? 'bg-accent text-white border-accent' : 'bg-surface text-primary border-border hover:border-accent hover:bg-surface-hover'}`}>
-                    {day}
-                  </button>
-                ))}
+                {DAYS.map((day) => {
+                  const isSelected = selectedDays.some((s) => s.day === day);
+                  return (
+                    <button
+                      key={day}
+                      type="button"
+                      onClick={() => toggleDay(day)}
+                      className={`px-4 py-2 rounded-full text-sm font-semibold border transition-colors ${isSelected ? 'bg-accent text-white border-accent' : 'bg-surface text-primary border-border hover:border-accent hover:bg-surface-hover'}`}
+                    >
+                      {day}
+                    </button>
+                  );
+                })}
               </div>
-              <p className="text-xs text-muted">Default time slot: 9:00 AM - 5:00 PM (local timezone)</p>
+
+              {selectedDays.length > 0 ? (
+                <div className="space-y-3">
+                  {sortAvailability(selectedDays).map((slot) => (
+                    <div key={slot.day} className="rounded-xl border border-border bg-surface p-4 space-y-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="font-semibold text-text">{slot.day}</p>
+                        <button type="button" onClick={() => toggleDay(slot.day)} className="text-sm text-danger hover:underline">Remove</button>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <Input
+                          label="Start Time"
+                          type="time"
+                          step={60}
+                          value={slot.startTime}
+                          onChange={(e) => updateAvailabilityField(slot.day, "startTime", e.target.value)}
+                          inputMode="numeric"
+                          aria-label={`${slot.day} start time in 24 hour format`}
+                        />
+                        <Input
+                          label="End Time"
+                          type="time"
+                          step={60}
+                          value={slot.endTime}
+                          onChange={(e) => updateAvailabilityField(slot.day, "endTime", e.target.value)}
+                          inputMode="numeric"
+                          aria-label={`${slot.day} end time in 24 hour format`}
+                        />
+                      </div>
+                      <p className="text-xs text-muted">Use 24-hour time, for example 09:00 to 17:30.</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-xl border border-dashed border-border bg-surface p-6 text-sm text-muted">
+                  Select one or more days to add availability slots.
+                </div>
+              )}
             </CardContent>
-            <CardFooter><Button onClick={handleSaveAvailability} isLoading={isSaving}>Save Availability</Button></CardFooter>
+            <CardFooter className="flex flex-wrap gap-3">
+              <Button onClick={handleSaveAvailability} isLoading={isSaving} disabled={selectedDays.length === 0}>Save Availability</Button>
+            </CardFooter>
           </Card>
         )}
 
@@ -193,7 +291,32 @@ export const UserProfile: React.FC = () => {
         )}
 
         {activeTab === "reviews" && (
-          <Card><CardHeader><CardTitle>Reviews</CardTitle><CardDescription>Feedback left by your interview partners.</CardDescription></CardHeader><CardContent><div className="space-y-4">{[{ name: "Alex J.", rating: 5, text: "Great communicator, asked very structured questions during the interview.", date: "2 days ago" }, { name: "Sam P.", rating: 4, text: "Good problem solving approach. Would love to practice again!", date: "1 week ago" }].map((r, i) => <div key={i} className="p-4 rounded-xl border border-border bg-surface space-y-2"><div className="flex items-center justify-between"><p className="font-semibold text-text text-sm">{r.name}</p><div className="flex items-center gap-1">{"?".repeat(r.rating)}<span className="text-xs text-muted ml-1">{r.date}</span></div></div><p className="text-sm text-muted">{r.text}</p></div>)}<div className="text-center py-10 text-muted text-sm">No reviews yet. Complete sessions to receive peer feedback.</div></div></CardContent></Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Reviews</CardTitle>
+              <CardDescription>Feedback left by your interview partners.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {[
+                  { name: "Alex J.", rating: 5, text: "Great communicator, asked very structured questions during the interview.", date: "2 days ago" },
+                  { name: "Sam P.", rating: 4, text: "Good problem solving approach. Would love to practice again!", date: "1 week ago" },
+                ].map((r, i) => (
+                  <div key={i} className="p-4 rounded-xl border border-border bg-surface space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="font-semibold text-text text-sm">{r.name}</p>
+                      <div className="flex items-center gap-1">
+                        {"*".repeat(r.rating)}
+                        <span className="text-xs text-muted ml-1">{r.date}</span>
+                      </div>
+                    </div>
+                    <p className="text-sm text-muted">{r.text}</p>
+                  </div>
+                ))}
+                <div className="text-center py-10 text-muted text-sm">No reviews yet. Complete sessions to receive peer feedback.</div>
+              </div>
+            </CardContent>
+          </Card>
         )}
 
         {activeTab === "badges" && (
