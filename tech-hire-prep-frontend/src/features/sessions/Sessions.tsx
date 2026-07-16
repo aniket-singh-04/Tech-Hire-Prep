@@ -70,8 +70,15 @@ const SessionRow: React.FC<{
   const role = session.participants[0]?.role ?? 'participant';
   const paymentBadge = getPaymentBadge(session, paymentState);
 
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onClick();
+    }
+  }
+
   return (
-    <div className="flex items-center gap-4 py-3.5 px-4 hover:bg-bg cursor-pointer rounded-xl transition-colors" onClick={onClick}>
+    <div className="flex items-center gap-4 py-3.5 px-4 hover:bg-bg cursor-pointer rounded-xl transition-colors" role='button' tabIndex={0} onClick={onClick} onKeyDown={handleKeyDown}>
       <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 text-lg">
         {role === 'candidate' ? 'C' : 'I'}
       </div>

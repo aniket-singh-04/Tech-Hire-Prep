@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router';
+import { useParams } from 'react-router-dom';
 import { VscArrowLeft, VscPlay, VscClose, VscCalendar, VscFeedback, VscStarFull } from 'react-icons/vsc';
 import { sessionApi, paymentApi } from '../../services/backendApi';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { getErrorMessage } from '../../utils/notifications';
+import { openRazorpayCheckout } from '../../utils/razorpay';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
@@ -14,13 +15,6 @@ import { FeedbackForm } from '../../components/feedback/FeedbackForm';
 import type { Session } from '../../types';
 import { useNavigate } from 'react-router-dom';
 
-declare global {
-  interface Window {
-    Razorpay?: new (options: Record<string, unknown>) => {
-      open: () => void;
-    };
-  }
-}
 
 const statusColor: Record<string, 'blue' | 'green' | 'yellow' | 'red' | 'gray' | 'purple'> = {
   live: 'green', matched: 'blue', scheduled: 'purple',
@@ -40,26 +34,6 @@ const RubricBar: React.FC<{ label: string; value: number; max?: number }> = ({ l
     </div>
   </div>
 );
-
-const loadRazorpay = async () => {
-  if (window.Razorpay) return true;
-
-  return await new Promise<boolean>((resolve) => {
-    const existing = document.getElementById('razorpay-checkout-script');
-    if (existing) {
-      resolve(true);
-      return;
-    }
-
-    const script = document.createElement('script');
-    script.id = 'razorpay-checkout-script';
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-    script.async = true;
-    script.onload = () => resolve(true);
-    script.onerror = () => resolve(false);
-    document.body.appendChild(script);
-  });
-};
 
 export const SessionDetail: React.FC = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -81,14 +55,27 @@ export const SessionDetail: React.FC = () => {
   const reload = () => {
     if (!sessionId) return;
     setLoading(true);
-    sessionApi.getById(sessionId).then((res: any) => setSession(res?.data ?? res)).catch(() => {}).finally(() => setLoading(false));
+    sessionApi.getById(sessionId)
+      .then((res: any) => {
+        const session = res?.data ?? res;
+        setSession(session);
+      })
+      .catch((err) => {
+        pushToast({
+          title: 'Error loading session',
+          description: getErrorMessage(err, 'Failed to load session details'),
+          variant: 'error'
+        });
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   };
 
   useEffect(() => {
     if (!sessionId) return;
     const timer = setTimeout(() => {
-      setLoading(true);
-      sessionApi.getById(sessionId).then((res: any) => setSession(res?.data ?? res)).catch(() => {}).finally(() => setLoading(false));
+      reload();
     }, 0);
     return () => clearTimeout(timer);
   }, [sessionId]);
@@ -144,38 +131,25 @@ export const SessionDetail: React.FC = () => {
     try {
       setPaymentSubmitting(true);
       const order = await paymentApi.createOrder({ sessionId, metadata: { source: 'session_checkout' } }) as any;
-      const loaded = await loadRazorpay();
-      if (!loaded || !window.Razorpay) {
-        pushToast({ title: 'Payment unavailable', description: 'Checkout could not be loaded. Try again later.', variant: 'error' });
-        return;
-      }
 
-      const checkout = new window.Razorpay({
-        key: (import.meta.env.VITE_RAZORPAY_KEY_ID as string | undefined) ?? '',
-        order_id: order.orderId,
+      await openRazorpayCheckout({
+        orderId: order.orderId,
         amount: order.amount,
         currency: order.currency,
         name: 'Tech Hire Prep',
         description: 'Interview session fee',
-        handler: async (response: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {
+        prefill: {
+          name: user?.name ?? '',
+          email: user?.email ?? '',
+        },
+        onSuccess: async (response) => {
           await paymentApi.verify(response);
           pushToast({ title: 'Payment complete', description: 'Your interview has been unlocked.', variant: 'success' });
           setPaymentOpen(false);
           reload();
         },
-        modal: {
-          ondismiss: () => setPaymentOpen(false),
-        },
-        prefill: {
-          name: user?.name ?? '',
-          email: user?.email ?? '',
-        },
-        theme: {
-          color: '#0f172a',
-        },
+        onDismiss: () => setPaymentOpen(false),
       });
-
-      checkout.open();
     } catch (err) {
       pushToast({ title: 'Payment failed', description: getErrorMessage(err, 'Failed to start payment checkout'), variant: 'error' });
     } finally {
@@ -238,7 +212,7 @@ export const SessionDetail: React.FC = () => {
             <p className="text-sm font-medium text-text">{value}</p>
           </div>
         ))
-      }</div>
+        }</div>
 
       <Card>
         <CardHeader><CardTitle className="text-base">Participants</CardTitle></CardHeader>

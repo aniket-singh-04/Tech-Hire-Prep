@@ -34,7 +34,7 @@ export const createOrderService = async (
   metadata?: Record<string, unknown>
 ) => {
   const amountInPaise = Math.round(PAYMENT_CONSTANTS.INTERVIEW_COST_INR * 100);
-  const receiptId = `receipt_${Date.now()}_${userId}`;
+  const receiptId = `r_${userId.slice(0, 8)}_${Date.now()}`;
 
   try {
     if (sessionId) {
@@ -55,6 +55,7 @@ export const createOrderService = async (
       currency: PAYMENT_CONSTANTS.CURRENCY_INR,
       receipt: receiptId,
     });
+    console.log(order)
 
     // Merge sessionId into metadata so we can link payment ? session later
     const resolvedMetadata: Record<string, unknown> = {
@@ -81,6 +82,9 @@ export const createOrderService = async (
       status: payment.status,
     };
   } catch (error: any) {
+      console.error("Create Razorpay order error:", error);
+  console.error("Response:", error?.response);
+  console.error("Response data:", error?.response?.data);
     throw new AppError(`Failed to create Razorpay order: ${error.message}`, 500);
   }
 };

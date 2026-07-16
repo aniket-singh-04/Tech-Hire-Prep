@@ -7,20 +7,28 @@ import { PaymentRepository } from "../repositories/payment.repository.ts";
 const toIso = (value?: Date | string | null) => (value ? new Date(value).toISOString() : undefined);
 const toId = (value: unknown): string => {
   if (value === null || value === undefined) return "";
-  if (typeof value === "string") return value;
-  if (typeof value === "object") {
-    const maybeId = (value as { _id?: unknown })._id;
-    if (maybeId !== undefined) {
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return String(value);
+
+  if ( value instanceof Types.ObjectId) {
+    return value.toHexString();
+  }
+
+  if(typeof value === "object"){
+    const record = value as Record<string, unknown> & { _id?: unknown; toString?: () => string};
+    const maybeId = record._id;
+
+    if (maybeId !== undefined && maybeId !== null && maybeId !== value){
       return toId(maybeId);
     }
-    if (typeof (value as { toString?: () => string }).toString === "function") {
-      const rendered = (value as { toString: () => string }).toString();
-      if (rendered !== "[object Object]") {
+    if (typeof record.toString === "function"){
+      const rendered = record.toString();
+      if (rendered && rendered !== "[boject Object]"){
         return rendered;
       }
     }
   }
-  return String(value);
+    
+  return "";
 };
 
 const mapSessionStatus = (status: InterviewSessionStatus) => {
@@ -104,7 +112,7 @@ const toSessionResponse = (session: any) => {
   const averageRating = ratingCount > 0 ? Number((ratingTotal / ratingCount).toFixed(2)) : 0;
 
   return {
-    id: toId(session._id),
+    id: toId(session._id ?? session.id),
     requestIds: [toId(matchId)].filter(Boolean),
     participants: buildParticipants(session),
     status: mapSessionStatus(session.status),
@@ -142,7 +150,8 @@ const getOwnedSessionById = async (sessionId: string, userId: string) => {
   if (session.interviewerId.toString() !== userId && session.intervieweeId.toString() !== userId) {
     throw new AppError("Unauthorized access to session", 403);
   }
-
+  
+  console.log("rr",session, "rr")
   return session;
 };
 

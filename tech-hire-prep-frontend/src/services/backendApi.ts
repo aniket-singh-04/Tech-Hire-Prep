@@ -29,24 +29,6 @@ const normalizeMatchStatus = (status?: string) => {
   }
 };
 
-const normalizeSessionStatus = (status?: string) => {
-  switch ((status ?? "").toUpperCase()) {
-    case "CREATED":
-      return "matched";
-    case "SCHEDULED":
-    case "READY":
-      return "scheduled";
-    case "JOINED":
-    case "ACTIVE":
-      return "live";
-    case "COMPLETED":
-      return "completed";
-    case "CANCELLED":
-      return "cancelled";
-    default:
-      return "pending";
-  }
-};
 
 const toIso = (value?: string | Date | null) => (value ? new Date(value).toISOString() : undefined);
 
@@ -73,36 +55,40 @@ const normalizeMatchRequest = (request: any) => {
 const normalizeSession = (session: any): Session => {
   const participants = Array.isArray(session?.participants)
     ? session.participants.map((participant: any) => ({
-        ...participant,
-        userId: String(participant.userId ?? ""),
-        joinedAt: toIso(participant.joinedAt),
-        leftAt: toIso(participant.leftAt),
-        feedbackSubmitted: Boolean(participant.feedbackSubmitted),
-      }))
+      ...participant,
+      userId: String(participant.userId ?? ""),
+      joinedAt: toIso(participant.joinedAt),
+      leftAt: toIso(participant.leftAt),
+      feedbackSubmitted: Boolean(participant.feedbackSubmitted),
+    }))
     : [
-        {
-          userId: String(session?.intervieweeId ?? session?.candidateId ?? session?.interviewee ?? ""),
-          role: "candidate",
-          joinedAt: toIso(session?.intervieweeJoinedAt),
-          leftAt: toIso(session?.intervieweeLeftAt),
-          feedbackSubmitted: Boolean(session?.feedbackEntries?.some((entry: any) => String(entry.userId) === String(session?.intervieweeId))),
-        },
-        {
-          userId: String(session?.interviewerId ?? ""),
-          role: "interviewer",
-          joinedAt: toIso(session?.interviewerJoinedAt),
-          leftAt: toIso(session?.interviewerLeftAt),
-          feedbackSubmitted: Boolean(session?.feedbackEntries?.some((entry: any) => String(entry.userId) === String(session?.interviewerId))),
-        },
-      ];
+      {
+        userId: String(session?.intervieweeId ?? session?.candidateId ?? session?.interviewee ?? ""),
+        role: "candidate",
+        joinedAt: toIso(session?.intervieweeJoinedAt),
+        leftAt: toIso(session?.intervieweeLeftAt),
+        feedbackSubmitted: Boolean(session?.feedbackEntries?.some((entry: any) => String(entry.userId) === String(session?.intervieweeId))),
+      },
+      {
+        userId: String(session?.interviewerId ?? ""),
+        role: "interviewer",
+        joinedAt: toIso(session?.interviewerJoinedAt),
+        leftAt: toIso(session?.interviewerLeftAt),
+        feedbackSubmitted: Boolean(session?.feedbackEntries?.some((entry: any) => String(entry.userId) === String(session?.interviewerId))),
+      },
+    ];
+
+
+  const resolveId = session?.id ?? session?._id ?? session?.sessionId ?? "";
+  const fallbackRequestIds = Array.isArray(session?.requestIds)
+    ? session.requestIds
+    : [session?.matchId?._id ?? session?.matchId ?? session?.requesterId ?? session?.sessionId ?? " "];
 
   return {
-    id: String(session?.id ?? session?._id ?? ""),
-    requestIds: Array.isArray(session?.requestIds)
-      ? session.requestIds.map((requestId: any) => String(requestId))
-      : [String(session?.matchId?._id ?? session?.matchId ?? "")].filter(Boolean),
+    id: String(resolveId),
+    requestIds: fallbackRequestIds,
     participants,
-    status: normalizeSessionStatus(session?.status),
+    status: session?.status,
     scheduledAt: toIso(session?.scheduledAt ?? session?.startTime ?? session?.createdAt),
     startedAt: toIso(session?.startedAt ?? session?.startTime),
     endedAt: toIso(session?.endedAt ?? session?.endTime),
@@ -117,10 +103,10 @@ const normalizeSession = (session: any): Session => {
     scorecard: session?.scorecard,
     reports: Array.isArray(session?.reports)
       ? session.reports.map((report: any) => ({
-          userId: report.userId,
-          reason: report.reason,
-          createdAt: toIso(report.createdAt) ?? new Date().toISOString(),
-        }))
+        userId: report.userId,
+        reason: report.reason,
+        createdAt: toIso(report.createdAt) ?? new Date().toISOString(),
+      }))
       : [],
     ratingSummary: session?.ratingSummary ?? {
       averageRating: session?.ratingCount ? Number(((session.ratingTotal ?? 0) / session.ratingCount).toFixed(2)) : 0,
