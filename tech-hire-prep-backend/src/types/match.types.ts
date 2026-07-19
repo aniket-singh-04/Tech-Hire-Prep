@@ -13,11 +13,16 @@ export enum interviewType {
 export enum matchStatus {
   SEARCHING = "SEARCHING",
   MATCHED = "MATCHED",
-  ASSIGNED = "ASSIGNED",
-  IN_PROGRESS = "IN_PROGRESS",
+  ACCEPTED = "ACCEPTED",
   COMPLETED = "COMPLETED",
   CANCELLED = "CANCELLED",
   EXPIRED = "EXPIRED"
+}
+
+export enum notifiedUserStatus{
+  PENDING = "PENDING",
+  ACCEPTED = "ACCEPTED",
+  REJECTED = "REJECTED"
 }
 
 export interface IInterview {
@@ -32,21 +37,13 @@ export interface IInterview {
   matchedUserId?: Types.ObjectId;
   interviewSessionId?: Types.ObjectId;
 
-  // Scheduling and Tracking fields
-  availableTimeSlot?: {
-    startTime: Date;
-    endTime: Date;
-  };
   acceptedTime?: Date;
-  interviewStartTime?: Date;
-  interviewEndTime?: Date;
-  assignmentTimestamp?: Date;
-  expirationTimestamp?: Date;
+  expirationTimestamp: Date;
 
   // First-Accept Wins Tracking
   notifiedUsers?: Array<{
     userId: Types.ObjectId;
-    status: "PENDING" | "ACCEPTED" | "REJECTED";
+    status: notifiedUserStatus;
     notifiedAt: Date;
     respondedAt?: Date;
   }>;

@@ -358,6 +358,65 @@ export const ENV = Object.freeze({
         "COOKIE_SECURE",
         false,
     ),
+
+    /* ------------------------------ webRtc ----------------------------- */
+    ICE_MODE: getString(
+        "ICE_MODE",
+        "public-stun"
+    ),
+    
+    PUBLIC_STUN_URL: getString(
+        "PUBLIC_STUN_URL",
+        "stun:stun.l.google.com:19302"
+    ),
+
+    TURN_ENABLED: getBoolean(
+        "TURN_ENABLED", 
+        false
+    ),
+    
+    TURN_HOST: getString(
+        "TURN_HOST", 
+        ""
+    ),
+    
+    TURN_SECRET: getString(
+        "TURN_SECRET", 
+        ""
+    ),
+    
+    TURN_PORT: getNumber(
+        "TURN_PORT", 
+        3478
+    ),
+    
+    TURN_TLS_PORT: getNumber(
+        "TURN_TLS_PORT", 
+        5349
+    ),
+    
+    TURN_TTL: getNumber(
+        "TURN_TTL", 
+        3600
+    ),
+    
+    /* ------------------------------ webRtc ----------------------------- */
+
+    JUDGE0_URL: getString(
+        "JUDGE0_URL",
+        "https://judge0-ce.p.rapidapi.com"
+    ),
+
+    JUDGE0_KEY: getString(
+        "JUDGE0_KEY",
+        ""
+    ),
+
+    JUDGE0_HOST: getString(
+        "JUDGE0_HOST",
+        "judge0-ce.p.rapidapi.com"
+    )
+
 } as const);
 
 /* -------------------------------------------------------------------------- */

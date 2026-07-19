@@ -1,14 +1,15 @@
-import InterviewSessionModel, { InterviewSessionStatus } from "../models/interviewSession.model.ts";
+import { InterviewSessionStatus } from "../models/interviewSession.model.ts";
 import { MatchRepository } from "../repositories/match.repository.ts";
 import profileRepository from "../repositories/profile.repository.ts";
 import { UserRepository } from "../repositories/user.repository.ts";
-import { RequestMatchServiceInput, matchStatus } from "../types/match.types.ts";
-import { getOnlineUsers, emitToUser } from "../socket/index.ts";
+import { RequestMatchServiceInput, matchStatus, notifiedUserStatus } from "../types/match.types.ts";
+import { emitToUser } from "../socket/index.ts";
 import { MatchingEngine } from "../engine/matching.engine.ts";
 import { MATCH_QUEUE } from "../constants/match.constants.ts";
 import { AppError } from "../utils/appError.ts";
 import { randomUUID } from "crypto";
 import { Types } from "mongoose";
+import interviewSessionRepository from "../repositories/interviewSession.repository.ts";
 
 export const requestMatchService = async (input: RequestMatchServiceInput) => {
     const userObjectId = new Types.ObjectId(input.userId);
@@ -23,14 +24,17 @@ export const requestMatchService = async (input: RequestMatchServiceInput) => {
         throw new AppError("Complete your profile before requesting a match.", 400);
     }
 
-    const active = await MatchRepository.findActiveRequestByUserId(userObjectId);
+    let active = await MatchRepository.findActiveRequestByUserId(userObjectId);
+    if (active && active.expirationTimestamp <= new Date()) {
+        await MatchRepository.expireRequest(active._id);
+        active = null;
+    }
 
     if (active) {
         throw new AppError("You already have an active matchmaking request.", 409);
     }
 
     const expiresAt = new Date(Date.now() + MATCH_QUEUE.REQUEST_EXPIRY_MINUTES * 60000);
-    await MatchRepository.expireOldRequests(new Date(Date.now() - MATCH_QUEUE.REQUEST_EXPIRY_MINUTES * 60000));
 
     const request = await MatchRepository.createMatchRequest({
         userId: userObjectId,
@@ -38,22 +42,15 @@ export const requestMatchService = async (input: RequestMatchServiceInput) => {
         expirationTimestamp: expiresAt,
     } as never);
 
-    // Find eligible online candidates
-    // const onlineUsersMap = getOnlineUsers();
-    // const onlineUserIds = Array.from(onlineUsersMap.keys());
+
     const allUsers = await profileRepository.othersCandidateProfile(input.userId);
-    const onlineUserIds = allUsers.map(user => user.userId.toString());
-    console.log(onlineUserIds)
+    const allUserIds = allUsers.map(user => user.userId.toString());
     
-    // Get all profiles of online users
-    const onlineProfiles = await profileRepository.findManyByUserIds(onlineUserIds);
-    console.log(onlineProfiles)
+    // Get all profiles of users
+    const allUserProfiles = await profileRepository.findManyByUserIds(allUserIds);
     
     // Get active sessions to know who is busy
-    const activeSessions = await InterviewSessionModel.find({
-        status: { $in: [InterviewSessionStatus.SCHEDULED, InterviewSessionStatus.READY, InterviewSessionStatus.JOINED, InterviewSessionStatus.ACTIVE] }
-    });
-    console.log(activeSessions)
+    const activeSessions = await interviewSessionRepository.findActiveSessions();
 
     const busyUserIds = new Set<string>();
     for (const session of activeSessions) {
@@ -64,31 +61,40 @@ export const requestMatchService = async (input: RequestMatchServiceInput) => {
     const eligibleProfiles = MatchingEngine.filterEligibleCandidates(
         request,
         profile,
-        onlineProfiles,
+        allUserProfiles,
         Array.from(busyUserIds)
     );
-    console.log(eligibleProfiles)
 
-    if (eligibleProfiles.length > 0) {
-        const eligibleUserIds = eligibleProfiles.map(p => p.userId);
-        await MatchRepository.addNotifiedUsers(request._id as Types.ObjectId, eligibleUserIds);
+    if (eligibleProfiles.length === 0) {
+        await MatchRepository.updateRequestStatus(
+            request._id as Types.ObjectId,
+            matchStatus.EXPIRED,
+            {
+                expirationTimestamp: new Date(),
+            },
+        );
 
-        // Notify them in real-time with full request context so they can make an informed decision
-        for (const candidate of eligibleUserIds) {
-            emitToUser(candidate.toString(), "interview-request", {
-                requestId: request._id,
-                requesterId: input.userId,
-                requesterName: requester?.name ?? null,
-                interviewType: request.interviewType,
-                preferredRole: request.preferredRole,
-                difficulty: request.difficulty,
-                preferredLanguage: request.preferredLanguage,
-                duration: request.duration,
-                description: request.description ?? null,
-                requesterHeadline: profile.headline,
-                expiresAt,
-            });
-        }
+        throw new AppError("No eligible interviewers are currently available. Please try again later.", 404,);
+    }
+
+    const eligibleUserIds = eligibleProfiles.map(profile => profile.userId);
+    await MatchRepository.updateRequestStatus(request._id, matchStatus.MATCHED);
+    await MatchRepository.addNotifiedUsers( request._id as Types.ObjectId, eligibleUserIds, );
+    
+    for (const candidateId of eligibleUserIds) {
+        emitToUser(candidateId.toString(), "interview-request", {
+            requestId: request._id,
+            requesterId: input.userId,
+            requesterName: requester?.name ?? null,
+            interviewType: request.interviewType,
+            preferredRole: request.preferredRole,
+            difficulty: request.difficulty,
+            preferredLanguage: request.preferredLanguage,
+            duration: request.duration,
+            description: request.description ?? null,
+            requesterHeadline: profile.headline,
+            expiresAt,
+        });
     }
 
     return request;
@@ -98,8 +104,8 @@ export const requestMatchService = async (input: RequestMatchServiceInput) => {
 const isWithinAvailability = (availability: { day: string; startTime: string; endTime: string }[] | undefined) => {
     if (!availability || availability.length === 0) return true;
 
-    const currentDay = new Date().toLocaleString("en-US", { weekday: "long" }).toUpperCase();
-    const currentTimeStr = new Date().toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit" });
+    const currentDay = new Date().toLocaleString("en-US", { weekday: "long", timeZone: "Asia/Kolkata" }).toUpperCase();
+    const currentTimeStr = new Date().toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata", });
 
     const todaySlots = availability.filter((slot) => slot.day === currentDay);
     if (todaySlots.length === 0) return false;
@@ -108,9 +114,7 @@ const isWithinAvailability = (availability: { day: string; startTime: string; en
 };
 
 const buildBusyUserSet = async () => {
-    const activeSessions = await InterviewSessionModel.find({
-        status: { $in: [InterviewSessionStatus.SCHEDULED, InterviewSessionStatus.READY, InterviewSessionStatus.JOINED, InterviewSessionStatus.ACTIVE] }
-    });
+    const activeSessions = await interviewSessionRepository.findActiveSessions();
 
     const busyUserIds = new Set<string>();
     for (const session of activeSessions) {
@@ -174,7 +178,6 @@ export const getVisibleMatchRequestService = async (userId: string) => {
     const candidateBusy = busyUserIds.has(userId);
     if (candidateBusy) return null;
 
-    console.log(activeRequests)
     for (const request of activeRequests) {
         if (request.userId.toString() === userId) continue;
         if (request.expirationTimestamp && new Date(request.expirationTimestamp).getTime() < Date.now()) continue;
@@ -190,6 +193,7 @@ export const getVisibleMatchRequestService = async (userId: string) => {
 
     return null;
 };
+
 export const acceptMatchService = async (userId: string, requestId: string) => {
     const requestObjectId = new Types.ObjectId(requestId);
     const userObjectId = new Types.ObjectId(userId);
@@ -204,7 +208,7 @@ export const acceptMatchService = async (userId: string, requestId: string) => {
     const sessionId = new Types.ObjectId();
     const roomId = randomUUID();
 
-    const accepted = await MatchRepository.acceptMatchRequestAtomically(
+    const accepted = await MatchRepository.acceptMatchRequest(
         requestObjectId,
         userObjectId,
         sessionId
@@ -214,7 +218,7 @@ export const acceptMatchService = async (userId: string, requestId: string) => {
         throw new AppError("Request is no longer available or already accepted.", 400);
     }
 
-    const session = await InterviewSessionModel.create({
+    const session = await interviewSessionRepository.createSession({
         _id: sessionId,
         matchId: requestObjectId,
         interviewerId: userObjectId,
@@ -223,27 +227,19 @@ export const acceptMatchService = async (userId: string, requestId: string) => {
         roomId,
     });
 
-    emitToUser(request.userId.toString(), "interview-assigned", {
+    emitToUser(request.userId.toString(), "interviewer-assigned", {
         requestId,
         sessionId: session._id,
         interviewerId: userObjectId,
         roomId,
-        matchDetails: {
-            interviewType: request.interviewType,
-            preferredRole: request.preferredRole,
-            difficulty: request.difficulty,
-            preferredLanguage: request.preferredLanguage,
-            duration: request.duration,
-            description: request.description ?? null,
-        },
     });
 
     const otherNotifiedUsers = request.notifiedUsers?.filter(
-        nu => nu.userId.toString() !== userId && nu.status === "PENDING"
+        nu => nu.userId.toString() !== userId && nu.status === notifiedUserStatus.PENDING
     ) || [];
 
     for (const nu of otherNotifiedUsers) {
-        emitToUser(nu.userId.toString(), "interview-closed", {
+        emitToUser(nu.userId.toString(), "interviewer-already-assigned", {
             requestId
         });
     }
@@ -260,8 +256,8 @@ export const rejectMatchService = async (userId: string, requestId: string) => {
         throw new AppError("Request not found.", 404);
     }
 
-    const allResponded = (updated.notifiedUsers?.length ?? 0) > 0 && updated.notifiedUsers?.every(n => n.status !== "PENDING");
-    if (allResponded && updated.status === matchStatus.SEARCHING) {
+    const allResponded = (updated.notifiedUsers?.length ?? 0) > 0 && updated.notifiedUsers?.every(n => n.status === notifiedUserStatus.REJECTED);
+    if (allResponded && updated.status === matchStatus.MATCHED) {
         await MatchRepository.updateRequestStatus(requestObjectId, matchStatus.EXPIRED, {
             expirationTimestamp: new Date(),
         });
@@ -287,26 +283,11 @@ export const cancelMatchService = async (userId: string) => {
     });
 
     if (updated?.interviewSessionId) {
-        const session = await InterviewSessionModel.findByIdAndUpdate(
-            updated.interviewSessionId,
-            {
-                $set: {
-                    status: InterviewSessionStatus.CANCELLED,
-                    endTime: new Date(),
-                },
-            },
-            { returnDocument: "after" }
-        );
+        const session = await interviewSessionRepository.cancelSession(updated.interviewSessionId);
 
         if (session) {
             const otherUserId = session.interviewerId.toString() === userId ? session.intervieweeId : session.interviewerId;
             emitToUser(otherUserId.toString(), "session-cancelled", { sessionId: session._id.toString() });
-        }
-    } else {
-        for (const notified of active.notifiedUsers ?? []) {
-            if (notified.status === "PENDING") {
-                emitToUser(notified.userId.toString(), "interview-closed", { requestId: active._id.toString() });
-            }
         }
     }
 

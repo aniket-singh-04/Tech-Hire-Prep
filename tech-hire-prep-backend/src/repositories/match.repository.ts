@@ -1,8 +1,16 @@
 import { Types } from "mongoose";
-import { IInterview, matchStatus } from "../types/match.types.ts";
+import { IInterview, matchStatus, notifiedUserStatus } from "../types/match.types.ts";
 import InterviewRequestModel from "../models/match.model.ts";
 
-type InterviewRequestInput = Pick<IInterview, "userId" | "interviewType" | "preferredRole" | "difficulty" | "preferredLanguage" | "duration">;
+type InterviewRequestInput = Pick<
+  IInterview,
+  | "userId"
+  | "interviewType"
+  | "preferredRole"
+  | "difficulty"
+  | "preferredLanguage"
+  | "duration"
+>;
 
 export class MatchRepository {
   static async createMatchRequest(data: InterviewRequestInput) {
@@ -10,29 +18,15 @@ export class MatchRepository {
   }
 
   static async findSearchingRequests() {
-    return InterviewRequestModel.find({ status: matchStatus.SEARCHING }).sort({ createdAt: -1 });
+    return InterviewRequestModel.find({ status: matchStatus.SEARCHING }).sort({
+      createdAt: -1,
+    });
   }
 
   static async findActiveRequestByUserId(userId: Types.ObjectId) {
     return InterviewRequestModel.findOne({
       userId,
-      status: { $in: [matchStatus.SEARCHING, matchStatus.ASSIGNED] },
-    }).sort({ createdAt: -1 });
-  }
-
-  static async findVisibleActiveRequestByUserId(userId: Types.ObjectId) {
-    return InterviewRequestModel.findOne({
-      $or: [
-        {
-          userId,
-          status: { $in: [matchStatus.SEARCHING, matchStatus.ASSIGNED] },
-        },
-        {
-          status: matchStatus.SEARCHING,
-          "notifiedUsers.userId": userId,
-          "notifiedUsers.status": "PENDING",
-        },
-      ],
+      status: { $in: [matchStatus.SEARCHING] },
     }).sort({ createdAt: -1 });
   }
 
@@ -43,29 +37,29 @@ export class MatchRepository {
   static async updateRequestStatus(
     requestId: Types.ObjectId,
     status: matchStatus,
-    extraUpdates: Record<string, unknown> = {}
+    extraUpdates: Record<string, unknown> = {},
   ) {
     return InterviewRequestModel.findByIdAndUpdate(
       requestId,
       { $set: { status, ...extraUpdates } },
-      { returnDocument: "after" }
+      { returnDocument: "after" },
     );
   }
 
   static async addNotifiedUsers(
     requestId: Types.ObjectId,
-    userIds: Types.ObjectId[]
+    userIds: Types.ObjectId[],
   ) {
-    const newNotifiedUsers = userIds.map(userId => ({
+    const newNotifiedUsers = userIds.map((userId) => ({
       userId,
-      status: "PENDING",
-      notifiedAt: new Date()
+      status: notifiedUserStatus.PENDING,
+      notifiedAt: new Date(),
     }));
 
     return InterviewRequestModel.findByIdAndUpdate(
       requestId,
       { $push: { notifiedUsers: { $each: newNotifiedUsers } } },
-      { returnDocument: "after" }
+      { returnDocument: "after" },
     );
   }
 
@@ -87,36 +81,42 @@ export class MatchRepository {
           },
         },
       },
-      { returnDocument: "after" }
+      { returnDocument: "after" },
     );
   }
 
-  static async acceptMatchRequestAtomically(
+  static async acceptMatchRequest(
     requestId: Types.ObjectId,
     acceptingUserId: Types.ObjectId,
-    sessionId: Types.ObjectId
+    sessionId: Types.ObjectId,
   ) {
     return InterviewRequestModel.findOneAndUpdate(
       {
         _id: requestId,
-        status: matchStatus.SEARCHING,
+        status: matchStatus.MATCHED,
       },
       {
         $set: {
-          status: matchStatus.ASSIGNED,
+          status: matchStatus.ACCEPTED,
           matchedUserId: acceptingUserId,
           interviewSessionId: sessionId,
           acceptedTime: new Date(),
-          assignmentTimestamp: new Date(),
-        }
+          "notifiedUsers.$[user].status": "ACCEPTED",
+          "notifiedUsers.$[user].respondedAt": new Date(),
+        },
       },
-      { returnDocument: "after" }
+      {
+        returnDocument: "after",
+        arrayFilters: [
+          { "user.userId": acceptingUserId },
+        ],
+      },
     );
   }
 
   static async rejectMatchRequest(
     requestId: Types.ObjectId,
-    rejectingUserId: Types.ObjectId
+    rejectingUserId: Types.ObjectId,
   ) {
     return InterviewRequestModel.findOneAndUpdate(
       {
@@ -126,10 +126,10 @@ export class MatchRepository {
       {
         $set: {
           "notifiedUsers.$.status": "REJECTED",
-          "notifiedUsers.$.respondedAt": new Date()
-        }
+          "notifiedUsers.$.respondedAt": new Date(),
+        },
       },
-      { returnDocument: "after" }
+      { returnDocument: "after" },
     );
   }
 
@@ -142,7 +142,7 @@ export class MatchRepository {
   static async expireOldRequests(before: Date) {
     return InterviewRequestModel.updateMany(
       {
-        status: matchStatus.SEARCHING,
+        status: { $in: [matchStatus.SEARCHING, matchStatus.MATCHED] },
         createdAt: { $lt: before },
       },
       {
@@ -150,5 +150,19 @@ export class MatchRepository {
       }
     );
   }
-}
 
+  static async expireRequest(id: Types.ObjectId) {
+    return InterviewRequestModel.findByIdAndUpdate(
+      id,
+      {
+        $set: {
+          status: matchStatus.EXPIRED,
+          expirationTimestamp: new Date(),
+        },
+      },
+      {
+        new: true,
+      }
+    );
+  }
+}

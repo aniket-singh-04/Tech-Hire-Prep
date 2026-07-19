@@ -7,8 +7,6 @@ import {
   getHistorySessionsService,
   joinSessionService,
   leaveSessionService,
-  startSessionService,
-  endSessionService,
   cancelSessionService,
   rateSessionService,
   feedbackSessionService,
@@ -34,7 +32,7 @@ export const historySessionsController = asyncHandler(async (req: Request, res: 
 });
 
 export const scheduleSessionController = asyncHandler(async (req: Request, res: Response) => {
-  const result = await scheduleSessionService(req.user!.id, req.body.matchId, req.body.startTime, req.body.endTime);
+  const result = await scheduleSessionService(req.user!.id, req.body.sessionId, req.body.startTime, req.body.endTime);
   return created(res, result, "Session scheduled successfully");
 });
 
@@ -51,16 +49,6 @@ export const joinSessionController = asyncHandler(async (req: Request, res: Resp
 export const leaveSessionController = asyncHandler(async (req: Request, res: Response) => {
   const result = await leaveSessionService(req.params.sessionId as string, req.user!.id);
   return ok(res, result, "Left session successfully");
-});
-
-export const startSessionController = asyncHandler(async (req: Request, res: Response) => {
-  const result = await startSessionService(req.params.sessionId as string, req.user!.id);
-  return ok(res, result, "Session started successfully");
-});
-
-export const endSessionController = asyncHandler(async (req: Request, res: Response) => {
-  const result = await endSessionService(req.params.sessionId as string, req.user!.id);
-  return ok(res, result, "Session ended successfully");
 });
 
 export const cancelSessionController = asyncHandler(async (req: Request, res: Response) => {

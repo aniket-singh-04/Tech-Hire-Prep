@@ -1,53 +1,36 @@
-import InterviewSessionModel, { InterviewSessionStatus } from "../models/interviewSession.model.ts";
+import { InterviewSessionStatus } from "../models/interviewSession.model.ts";
 import { emitToUser } from "../socket/index.ts";
 import { AppError } from "../utils/appError.ts";
 import { Types } from "mongoose";
 import { PaymentRepository } from "../repositories/payment.repository.ts";
+import interviewSessionRepository from "../repositories/interviewSession.repository.ts";
+import { ensureJoinable, ensureSessionTimeActive } from "../utils/security.ts";
 
 const toIso = (value?: Date | string | null) => (value ? new Date(value).toISOString() : undefined);
 const toId = (value: unknown): string => {
   if (value === null || value === undefined) return "";
   if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return String(value);
 
-  if ( value instanceof Types.ObjectId) {
+  if (value instanceof Types.ObjectId) {
     return value.toHexString();
   }
 
-  if(typeof value === "object"){
-    const record = value as Record<string, unknown> & { _id?: unknown; toString?: () => string};
+  if (typeof value === "object") {
+    const record = value as Record<string, unknown> & { _id?: unknown; toString?: () => string };
     const maybeId = record._id;
 
-    if (maybeId !== undefined && maybeId !== null && maybeId !== value){
+    if (maybeId !== undefined && maybeId !== null && maybeId !== value) {
       return toId(maybeId);
     }
-    if (typeof record.toString === "function"){
+    if (typeof record.toString === "function") {
       const rendered = record.toString();
-      if (rendered && rendered !== "[boject Object]"){
+      if (rendered && rendered !== "[boject Object]") {
         return rendered;
       }
     }
   }
-    
-  return "";
-};
 
-const mapSessionStatus = (status: InterviewSessionStatus) => {
-  switch (status) {
-    case InterviewSessionStatus.CREATED:
-      return "matched";
-    case InterviewSessionStatus.SCHEDULED:
-    case InterviewSessionStatus.READY:
-      return "scheduled";
-    case InterviewSessionStatus.JOINED:
-    case InterviewSessionStatus.ACTIVE:
-      return "live";
-    case InterviewSessionStatus.COMPLETED:
-      return "completed";
-    case InterviewSessionStatus.CANCELLED:
-      return "cancelled";
-    default:
-      return "scheduled";
-  }
+  return "";
 };
 
 const buildScorecard = (session: any) => {
@@ -115,7 +98,7 @@ const toSessionResponse = (session: any) => {
     id: toId(session._id ?? session.id),
     requestIds: [toId(matchId)].filter(Boolean),
     participants: buildParticipants(session),
-    status: mapSessionStatus(session.status),
+    status: session.status,
     scheduledAt: toIso(session.scheduledAt ?? session.startTime ?? session.createdAt),
     startedAt: toIso(session.startTime),
     endedAt: toIso(session.endTime),
@@ -141,7 +124,7 @@ const toSessionResponse = (session: any) => {
 };
 
 const getOwnedSessionById = async (sessionId: string, userId: string) => {
-  const session = await InterviewSessionModel.findById(sessionId).populate("matchId");
+  const session = await interviewSessionRepository.findByIdWithPopulatedMatchId(sessionId);
 
   if (!session) {
     throw new AppError("Session not found", 404);
@@ -150,22 +133,16 @@ const getOwnedSessionById = async (sessionId: string, userId: string) => {
   if (session.interviewerId.toString() !== userId && session.intervieweeId.toString() !== userId) {
     throw new AppError("Unauthorized access to session", 403);
   }
-  
-  console.log("rr",session, "rr")
+
   return session;
 };
 
-const ensureParticipant = (session: any, userId: string) => {
-  if (session.interviewerId.toString() !== userId && session.intervieweeId.toString() !== userId) {
+const ensureInterviewerId = (session: any, userId: string) => {
+  if (session.interviewerId.toString() !== userId) {
     throw new AppError("Unauthorized access to session", 403);
   }
 };
 
-const ensureJoinable = (session: any) => {
-  if ([InterviewSessionStatus.COMPLETED, InterviewSessionStatus.CANCELLED].includes(session.status)) {
-    throw new AppError("This session can no longer be joined.", 400);
-  }
-};
 
 export const getSessionService = async (sessionId: string, userId: string) => {
   const session = await getOwnedSessionById(sessionId, userId);
@@ -173,41 +150,30 @@ export const getSessionService = async (sessionId: string, userId: string) => {
 };
 
 export const getUpcomingSessionsService = async (userId: string) => {
-  const sessions = await InterviewSessionModel.find({
-    $or: [{ interviewerId: userId }, { intervieweeId: userId }],
-    status: { $in: [InterviewSessionStatus.CREATED, InterviewSessionStatus.SCHEDULED, InterviewSessionStatus.READY, InterviewSessionStatus.JOINED, InterviewSessionStatus.ACTIVE] },
-  }).sort({ scheduledAt: 1, createdAt: 1 });
+  const sessions = await interviewSessionRepository.findUserSessions(new Types.ObjectId(userId));
 
   return sessions.map(toSessionResponse);
 };
 
 export const getHistorySessionsService = async (userId: string) => {
-  const sessions = await InterviewSessionModel.find({
-    $or: [{ interviewerId: userId }, { intervieweeId: userId }],
-    status: { $in: [InterviewSessionStatus.COMPLETED, InterviewSessionStatus.CANCELLED] },
-  }).sort({ createdAt: -1 });
+  const sessions = await interviewSessionRepository.findSessionHistory(new Types.ObjectId(userId));
 
   return sessions.map(toSessionResponse);
 };
 
-export const scheduleSessionService = async (userId: string, matchId: string, startTime: Date, endTime: Date) => {
-  const session = await InterviewSessionModel.findOne({ matchId: new Types.ObjectId(matchId) });
+export const scheduleSessionService = async (userId: string, sessionId: string, startTime: Date, endTime: Date) => {
+  const session = await interviewSessionRepository.findById(new Types.ObjectId(sessionId));
 
   if (!session) {
     throw new AppError("Session not found for this match.", 404);
   }
 
-  ensureParticipant(session, userId);
+  ensureInterviewerId(session, userId);
   ensureJoinable(session);
 
-  session.scheduledAt = startTime;
-  session.startTime = startTime;
-  session.endTime = endTime;
-  session.status = InterviewSessionStatus.SCHEDULED;
-  await session.save();
+  await interviewSessionRepository.updateScedule(session._id, new Date(startTime), new Date(endTime), InterviewSessionStatus.SCHEDULED)
 
-  const otherUserId = session.interviewerId.toString() === userId ? session.intervieweeId : session.interviewerId;
-  emitToUser(otherUserId.toString(), "session-scheduled", { sessionId: session._id.toString(), matchId, startTime, endTime });
+  emitToUser(session.intervieweeId.toString(), "session-scheduled", { sessionId, startTime, endTime });
 
   return toSessionResponse(session);
 };
@@ -215,15 +181,10 @@ export const scheduleSessionService = async (userId: string, matchId: string, st
 export const rescheduleSessionService = async (sessionId: string, userId: string, startTime: Date, endTime: Date) => {
   const session = await getOwnedSessionById(sessionId, userId);
   ensureJoinable(session);
+  ensureInterviewerId(session, userId);
+  await interviewSessionRepository.updateScedule(session._id, new Date(startTime), new Date(endTime), InterviewSessionStatus.SCHEDULED)
 
-  session.scheduledAt = startTime;
-  session.startTime = startTime;
-  session.endTime = endTime;
-  session.status = InterviewSessionStatus.SCHEDULED;
-  await session.save();
-
-  const otherUserId = session.interviewerId.toString() === userId ? session.intervieweeId : session.interviewerId;
-  emitToUser(otherUserId.toString(), "session-rescheduled", { sessionId, startTime, endTime });
+  emitToUser(session.intervieweeId.toString(), "session-rescheduled", { sessionId, startTime, endTime });
 
   return toSessionResponse(session);
 };
@@ -235,83 +196,90 @@ export const joinSessionService = async (sessionId: string, userId: string) => {
   const isInterviewer = session.interviewerId.toString() === userId;
   const isInterviewee = session.intervieweeId.toString() === userId;
 
-  if (isInterviewee) {
-    const confirmedPayment = await PaymentRepository.findPaidByUserAndSession(userId, sessionId);
+  if (!isInterviewer && !isInterviewee) {
+    throw new AppError("You are not a participant in this session.", 403);
+  }
 
-    if (!confirmedPayment) {
-      throw new AppError(
-        "Payment required to join this session. Please complete the payment and try again.",
-        402
-      );
+  // Candidate payment is required before anyone can join
+  const confirmedPayment = await PaymentRepository.findPaidByUserAndSession(session.intervieweeId.toString(), sessionId);
+
+  if (!confirmedPayment) {
+    if (isInterviewee) {
+      throw new AppError("Payment required to join this session. Please complete the payment first.", 402);
     }
+    throw new AppError("Candidate has not completed the payment yet.", 402);
   }
 
+  ensureSessionTimeActive(session);
   const now = new Date();
-  if (isInterviewer) {
-    session.interviewerJoinedAt = now;
-  } else if (isInterviewee) {
-    session.intervieweeJoinedAt = now;
+
+  const updateData: any = {};
+
+  if (isInterviewer && !session.interviewerJoinedAt) {
+    updateData.interviewerJoinedAt = now;
   }
 
-  const bothJoined = Boolean(session.interviewerJoinedAt && session.intervieweeJoinedAt);
-  session.readyAt = bothJoined ? session.readyAt ?? now : session.readyAt ?? now;
-  session.status = bothJoined ? InterviewSessionStatus.JOINED : InterviewSessionStatus.READY;
-  await session.save();
+  if (isInterviewee && !session.intervieweeJoinedAt) {
+    updateData.intervieweeJoinedAt = now;
+  }
+
+  const interviewerJoined = session.interviewerJoinedAt || updateData.interviewerJoinedAt;
+  const intervieweeJoined = session.intervieweeJoinedAt || updateData.intervieweeJoinedAt;
+
+  const bothJoined = Boolean(interviewerJoined && intervieweeJoined);
+
+  updateData.status = bothJoined ? InterviewSessionStatus.JOINED : InterviewSessionStatus.READY;
+
+  if (bothJoined && !session.readyAt) {
+    updateData.readyAt = now;
+  }
+
+  const updatedSession = await interviewSessionRepository.updateSessionStatus(new Types.ObjectId(sessionId), updateData);
 
   const otherUserId = isInterviewer ? session.intervieweeId : session.interviewerId;
-  emitToUser(otherUserId.toString(), "peer-joined", { sessionId, userId, status: session.status });
-
-  return toSessionResponse(session);
+  emitToUser(otherUserId.toString(), "peer-joined", { sessionId, userId, status: updatedSession?.status, });
+  return toSessionResponse(updatedSession);
 };
 
 export const leaveSessionService = async (sessionId: string, userId: string) => {
   const session = await getOwnedSessionById(sessionId, userId);
 
-  const otherUserId = session.interviewerId.toString() === userId ? session.intervieweeId : session.interviewerId;
-  if (session.interviewerId.toString() === userId) {
-    session.interviewerLeftAt = new Date();
-  } else {
-    session.intervieweeLeftAt = new Date();
-  }
-  await session.save();
+  const now = new Date();
 
-  emitToUser(otherUserId.toString(), "peer-left", { sessionId });
+  const isInterviewer = session.interviewerId.toString() === userId;
 
-  return toSessionResponse(session);
-};
+  const isInterviewee = session.intervieweeId.toString() === userId;
 
-export const startSessionService = async (sessionId: string, userId: string) => {
-  const session = await getOwnedSessionById(sessionId, userId);
-
-  if (!session.interviewerJoinedAt || !session.intervieweeJoinedAt) {
-    throw new AppError("Both participants must join before the session can start.", 400);
+  if (!isInterviewer && !isInterviewee) {
+    throw new AppError("You are not part of this session.", 403);
   }
 
-  session.status = InterviewSessionStatus.ACTIVE;
-  session.startTime = session.startTime ?? new Date();
-  await session.save();
-
-  const otherUserId = session.interviewerId.toString() === userId ? session.intervieweeId : session.interviewerId;
-  emitToUser(otherUserId.toString(), "session-started", { sessionId });
-
-  return toSessionResponse(session);
-};
-
-export const endSessionService = async (sessionId: string, userId: string) => {
-  const session = await getOwnedSessionById(sessionId, userId);
-
-  if (session.status !== InterviewSessionStatus.ACTIVE && session.status !== InterviewSessionStatus.JOINED) {
-    throw new AppError("Cannot end session before it has started.", 400);
+  const otherUserId = isInterviewer ? session.intervieweeId : session.interviewerId;
+  const updateData: any = {};
+  if (isInterviewer && !session.interviewerLeftAt) {
+    updateData.interviewerLeftAt = now;
+    updateData.status = InterviewSessionStatus.READY
   }
 
-  session.status = InterviewSessionStatus.COMPLETED;
-  session.endTime = new Date();
-  await session.save();
+  if (isInterviewee && !session.intervieweeLeftAt) {
+    updateData.status = InterviewSessionStatus.READY
+    updateData.intervieweeLeftAt = now;
+  }
 
-  const otherUserId = session.interviewerId.toString() === userId ? session.intervieweeId : session.interviewerId;
-  emitToUser(otherUserId.toString(), "session-ended", { sessionId });
+  const interviewerLeft = session.interviewerLeftAt || updateData.interviewerLeftAt;
+  const intervieweeLeft = session.intervieweeLeftAt || updateData.intervieweeLeftAt;
 
-  return toSessionResponse(session);
+  const bothLeft = Boolean(interviewerLeft && intervieweeLeft);
+
+  if (bothLeft) {
+    updateData.status = InterviewSessionStatus.COMPLETED;
+    updateData.endTime = now;
+  }
+
+  const updatedSession = await interviewSessionRepository.updateSessionStatus(new Types.ObjectId(sessionId), updateData);
+
+  emitToUser(otherUserId.toString(), "peer-left", { sessionId, status: updatedSession?.status, });
+  return toSessionResponse(updatedSession);
 };
 
 export const cancelSessionService = async (sessionId: string, userId: string) => {
@@ -321,9 +289,7 @@ export const cancelSessionService = async (sessionId: string, userId: string) =>
     throw new AppError("Session already closed.", 400);
   }
 
-  session.status = InterviewSessionStatus.CANCELLED;
-  session.endTime = session.endTime ?? new Date();
-  await session.save();
+  await interviewSessionRepository.cancelSession(new Types.ObjectId(sessionId));
 
   const otherUserId = session.interviewerId.toString() === userId ? session.intervieweeId : session.interviewerId;
   emitToUser(otherUserId.toString(), "session-cancelled", { sessionId });
@@ -338,90 +304,168 @@ export const reconnectSessionService = async (sessionId: string, userId: string)
   const isInterviewer = session.interviewerId.toString() === userId;
   const isInterviewee = session.intervieweeId.toString() === userId;
 
-  if (isInterviewer && !session.interviewerJoinedAt) {
-    session.interviewerJoinedAt = new Date();
-  }
-  if (isInterviewee && !session.intervieweeJoinedAt) {
-    session.intervieweeJoinedAt = new Date();
+  if (!isInterviewer && !isInterviewee) {
+    throw new AppError("You are not part of this session.", 403);
   }
 
-  if (session.interviewerJoinedAt && session.intervieweeJoinedAt) {
-    session.status = InterviewSessionStatus.JOINED;
-  } else {
-    session.status = InterviewSessionStatus.READY;
+  const updateData: any = {};
+
+  if (isInterviewer) {
+    if (!session.interviewerJoinedAt) {
+      updateData.interviewerJoinedAt = new Date();
+    }
+
+    updateData.interviewerLeftAt = undefined;
   }
 
-  await session.save();
+  if (isInterviewee) {
+    if (!session.intervieweeJoinedAt) {
+      updateData.intervieweeJoinedAt = new Date();
+    }
 
-  const otherUserId = session.interviewerId.toString() === userId ? session.intervieweeId : session.interviewerId;
-  emitToUser(otherUserId.toString(), "peer-reconnected", { sessionId, userId });
+    updateData.intervieweeLeftAt = undefined;
+  }
 
-  return toSessionResponse(session);
+  const interviewerPresent = !session.interviewerLeftAt || updateData.interviewerLeftAt === undefined;
+  const intervieweePresent = !session.intervieweeLeftAt || updateData.intervieweeLeftAt === undefined;
+
+  const bothPresent = interviewerPresent && intervieweePresent;
+
+  if (bothPresent) {
+    updateData.status = InterviewSessionStatus.ACTIVE;
+  }
+
+  const updatedSession =
+    await interviewSessionRepository.updateSessionStatus(
+      new Types.ObjectId(sessionId),
+      updateData
+    );
+
+  const otherUserId = isInterviewer ? session.intervieweeId : session.interviewerId;
+
+  emitToUser(otherUserId.toString(), "peer-reconnected", { sessionId, userId, status: updatedSession?.status, });
+
+  return toSessionResponse(updatedSession);
 };
 
 export const reportSessionService = async (sessionId: string, userId: string, reason: string) => {
   const session = await getOwnedSessionById(sessionId, userId);
-  session.reports = session.reports ?? [];
-  session.reports.push({
+
+  const isParticipant = session.interviewerId.toString() === userId || session.intervieweeId.toString() === userId;
+  if (session.status !== InterviewSessionStatus.COMPLETED) {
+    throw new AppError("This session is not completed after completion you can report.", 400);
+  }
+
+  if (!isParticipant) {
+    throw new AppError("You are not part of this session.", 403);
+  }
+
+  const updatedSession = await interviewSessionRepository.addReport(new Types.ObjectId(sessionId), {
     userId: new Types.ObjectId(userId),
     reason,
     createdAt: new Date(),
-  });
-  await session.save();
-  return toSessionResponse(session);
+  }
+  );
+
+  return toSessionResponse(updatedSession);
 };
 
 export const rateSessionService = async (sessionId: string, userId: string, rating: number) => {
   const session = await getOwnedSessionById(sessionId, userId);
-  session.ratings = session.ratings ?? [];
 
-  const existingIndex = session.ratings.findIndex((entry: any) => entry.userId.toString() === userId);
+  if (session.status !== InterviewSessionStatus.COMPLETED) {
+    throw new AppError("You can rate a session only after it has been completed.", 400);
+  }
+
+  if (rating < 1 || rating > 5) {
+    throw new AppError("Rating must be between 1 and 5.", 400);
+  }
+
+  const isInterviewer = session.interviewerId.toString() === userId;
+  const isInterviewee = session.intervieweeId.toString() === userId;
+
+  if (!isInterviewer && !isInterviewee) {
+    throw new AppError("You are not part of this session.", 403);
+  }
+
+  const toUserId = isInterviewer ? session.intervieweeId : session.interviewerId;
+  const ratings = [...(session.ratings ?? [])];
+  const existingIndex = ratings.findIndex(
+    (entry) => entry.fromUserId.toString() === userId && entry.toUserId.toString() === toUserId.toString()
+  );
+
   if (existingIndex >= 0) {
-    const currentRating = session.ratings[existingIndex];
-    session.ratingTotal = (session.ratingTotal ?? 0) - (currentRating?.value ?? 0) + rating;
-    if (currentRating) {
-      currentRating.value = rating;
-      currentRating.createdAt = new Date();
-    }
+    const existing = ratings[existingIndex]!;
+    existing.value = rating;
+    existing.createdAt = new Date();
   } else {
-    session.ratings.push({
-      userId: new Types.ObjectId(userId),
+    ratings.push({
+      fromUserId: new Types.ObjectId(userId),
+      toUserId: new Types.ObjectId(toUserId),
       value: rating,
       createdAt: new Date(),
     });
-    session.ratingCount = (session.ratingCount ?? 0) + 1;
-    session.ratingTotal = (session.ratingTotal ?? 0) + rating;
   }
 
-  session.rating = rating;
-  session.ratingCount = session.ratings.length;
-  session.ratingTotal = session.ratings.reduce((sum: number, entry: any) => sum + (entry.value ?? 0), 0);
-  await session.save();
+  const updatedSession =
+    await interviewSessionRepository.updateRatings(
+      new Types.ObjectId(sessionId),
+      {
+        ratings,
+      }
+    );
 
-  return toSessionResponse(session);
+  return toSessionResponse(updatedSession);
 };
 
 export const feedbackSessionService = async (sessionId: string, userId: string, feedback: string) => {
   const session = await getOwnedSessionById(sessionId, userId);
-  session.feedbackEntries = session.feedbackEntries ?? [];
 
-  const existingIndex = session.feedbackEntries.findIndex((entry: any) => entry.userId.toString() === userId);
+  if (session.status !== InterviewSessionStatus.COMPLETED) {
+    throw new AppError("You can give feedback only after the session is completed.", 400);
+  }
+
+  const isInterviewer = session.interviewerId.toString() === userId;
+
+  const isInterviewee = session.intervieweeId.toString() === userId;
+
+  if (!isInterviewer && !isInterviewee) {
+    throw new AppError("You are not part of this session.", 403);
+  }
+
+  const toUserId = isInterviewer ? session.intervieweeId : session.interviewerId;
+
+
+  const feedbackEntries = [...(session.feedbackEntries ?? []),];
+
+  const existingIndex = feedbackEntries.findIndex(
+    (entry) =>
+      entry.fromUserId.toString() === userId &&
+      entry.toUserId.toString() === toUserId.toString()
+  );
+
+  const now = new Date();
+
   if (existingIndex >= 0) {
-    const currentFeedback = session.feedbackEntries[existingIndex];
-    if (currentFeedback) {
-      currentFeedback.feedback = feedback;
-      currentFeedback.createdAt = new Date();
-    }
+    const existing = feedbackEntries[existingIndex]!;
+
+    existing.feedback = feedback;
+    existing.createdAt = now;
   } else {
-    session.feedbackEntries.push({
-      userId: new Types.ObjectId(userId),
+    feedbackEntries.push({
+      fromUserId: new Types.ObjectId(userId),
+      toUserId: new Types.ObjectId(toUserId),
       feedback,
-      createdAt: new Date(),
+      createdAt: now,
     });
   }
 
-  session.feedback = feedback;
-  await session.save();
 
-  return toSessionResponse(session);
+  const updatedSession =
+    await interviewSessionRepository.updateFeedbackEntries(
+      new Types.ObjectId(sessionId),
+      feedbackEntries
+    );
+
+  return toSessionResponse(updatedSession);
 };

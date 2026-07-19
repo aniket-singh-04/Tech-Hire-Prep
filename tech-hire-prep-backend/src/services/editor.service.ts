@@ -1,89 +1,9 @@
-import InterviewSessionModel from "../models/interviewSession.model.ts";
+import { Types } from "mongoose";
+import interviewSessionRepository from "../repositories/interviewSession.repository.ts";
 import { AppError } from "../utils/appError.ts";
-
-/* -------------------------------------------------------------------------- */
-/*                              Code Templates                                 */
-/* -------------------------------------------------------------------------- */
-
-const CODE_TEMPLATES: Record<string, string> = {
-  javascript: `// JavaScript
-function solution() {
-  // Write your solution here
-}
-
-console.log(solution());`,
-
-  typescript: `// TypeScript
-function solution(): void {
-  // Write your solution here
-}
-
-solution();`,
-
-  python: `# Python
-def solution():
-    # Write your solution here
-    pass
-
-if __name__ == "__main__":
-    print(solution())`,
-
-  java: `// Java
-public class Solution {
-  public static void main(String[] args) {
-    // Write your solution here
-  }
-}`,
-
-  cpp: `// C++
-#include <bits/stdc++.h>
-using namespace std;
-
-int main() {
-  // Write your solution here
-  return 0;
-}`,
-
-  c: `// C
-#include <stdio.h>
-
-int main() {
-  // Write your solution here
-  return 0;
-}`,
-
-  go: `// Go
-package main
-
-import "fmt"
-
-func main() {
-  // Write your solution here
-  fmt.Println("Hello")
-}`,
-
-  rust: `// Rust
-fn main() {
-  // Write your solution here
-  println!("Hello");
-}`,
-
-  ruby: `# Ruby
-def solution
-  # Write your solution here
-end
-
-puts solution`,
-
-  kotlin: `// Kotlin
-fun main() {
-  // Write your solution here
-}`,
-};
-
-/* -------------------------------------------------------------------------- */
-/*                               Editor Services                               */
-/* -------------------------------------------------------------------------- */
+import { ensureSessionTimeActive } from "../utils/security.ts";
+import { CODE_TEMPLATES, JUDGE0_LANGUAGES } from "../constants/judge0Languages.ts";
+import { getJudge0Result, submitCodeToJudge0 } from "./judge0.service.ts";
 
 /**
  * Returns all available language templates.
@@ -101,9 +21,9 @@ export const getEditorTemplatesService = () => {
  * Populates the match request (including description) for session room context.
  */
 export const getEditorSessionService = async (sessionId: string, userId: string) => {
-  const session = await InterviewSessionModel.findById(sessionId)
-    .populate("matchId", "interviewType preferredRole difficulty preferredLanguage duration description");
+  const session = await interviewSessionRepository.findByIdWithPopulatedMatchId(sessionId);
 
+  ensureSessionTimeActive(session);
   if (!session) throw new AppError("Session not found.", 404);
 
   if (
@@ -132,9 +52,9 @@ export const saveEditorSessionService = async (
   code: string,
   language: string
 ) => {
-  const session = await InterviewSessionModel.findById(sessionId);
+  const session = await interviewSessionRepository.findById(new Types.ObjectId(sessionId));
   if (!session) throw new AppError("Session not found.", 404);
-
+  ensureSessionTimeActive(session);
   if (
     session.interviewerId.toString() !== userId &&
     session.intervieweeId.toString() !== userId
@@ -142,11 +62,7 @@ export const saveEditorSessionService = async (
     throw new AppError("You are not a participant of this session.", 403);
   }
 
-  const updated = await InterviewSessionModel.findByIdAndUpdate(
-    sessionId,
-    { $set: { code, language } },
-    { returnDocument: "after" }
-  );
+  const updated = await interviewSessionRepository.updateCode(new Types.ObjectId(sessionId), { code, language });
 
   return {
     sessionId: updated!._id,
@@ -162,31 +78,57 @@ export const saveEditorSessionService = async (
 export const runEditorSessionService = async (
   sessionId: string,
   userId: string,
-  _code: string,
-  _language: string,
-  _input?: string
+  code: string,
+  language: string,
+  input?: string,
 ) => {
-  const session = await InterviewSessionModel.findById(sessionId);
-  if (!session) throw new AppError("Session not found.", 404);
 
-  if (
-    session.interviewerId.toString() !== userId &&
-    session.intervieweeId.toString() !== userId
-  ) {
-    throw new AppError("You are not a participant of this session.", 403);
+  if (!Types.ObjectId.isValid(sessionId)) {
+    throw new AppError("Invalid session id.", 400,);
+  }
+  const session = await interviewSessionRepository.findById(new Types.ObjectId(sessionId));
+  if (!session) {
+    throw new AppError("Session not found.", 404,);
   }
 
-  // Code execution engine not yet integrated.
-  throw new AppError("Code execution is not yet available.", 501);
+  ensureSessionTimeActive(session);
+  const isParticipant = session.interviewerId.toString() === userId || session.intervieweeId.toString() === userId;
+
+  if (!isParticipant) {
+    throw new AppError("You are not a participant of this session.", 403,);
+  }
+
+  if (!code || !language) {
+    throw new AppError("Code and language are required.", 400,);
+  }
+
+  const languageId = JUDGE0_LANGUAGES[ language as keyof typeof JUDGE0_LANGUAGES ];
+
+  if (!languageId) {
+    throw new AppError( "Unsupported language", 400 );
+  }
+
+  // const submission = await submitCodeToJudge0({ code, languageId, input, });
+  // const result = await getJudge0Result( submission.token );
+  // return {
+  //   token: submission.token,
+  //   status: result.status,
+  //   output: result.stdout,
+  //   error: result.stderr,
+  //   compileError: result.compile_output,
+  // };
+
+
+  throw new AppError("Code execution is not yet available.", 501,);
 };
 
 /**
  * Resets editor code + language to null (clean slate / back to template).
  */
 export const resetEditorSessionService = async (sessionId: string, userId: string) => {
-  const session = await InterviewSessionModel.findById(sessionId);
+  const session = await interviewSessionRepository.findById(new Types.ObjectId(sessionId));
   if (!session) throw new AppError("Session not found.", 404);
-
+  ensureSessionTimeActive(session);
   if (
     session.interviewerId.toString() !== userId &&
     session.intervieweeId.toString() !== userId
@@ -194,11 +136,7 @@ export const resetEditorSessionService = async (sessionId: string, userId: strin
     throw new AppError("You are not a participant of this session.", 403);
   }
 
-  await InterviewSessionModel.findByIdAndUpdate(
-    sessionId,
-    { $unset: { code: "", language: "" } },
-    { returnDocument: "after" }
-  );
+  await interviewSessionRepository.clearCode(new Types.ObjectId(sessionId));
 
   return { reset: true };
 };

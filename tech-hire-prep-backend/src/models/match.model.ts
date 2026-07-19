@@ -1,6 +1,30 @@
 import { ExperienceLevel, PreferredLanguage, TargetRole } from "../types/profile.types.ts";
-import { IInterview, interviewType, matchStatus } from "../types/match.types.ts";
+import { IInterview, interviewType, matchStatus, notifiedUserStatus } from "../types/match.types.ts";
 import mongoose, { HydratedDocument, Model, Schema } from "mongoose";
+
+
+const NotifiedUserSchema = new Schema(
+  {
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    status: {
+      type: String,
+      enum: Object.values(notifiedUserStatus),
+      default: notifiedUserStatus.PENDING,
+    },
+    notifiedAt: {
+      type: Date,
+      default: Date.now,
+    },
+    respondedAt: Date,
+  },
+  {
+    _id: false, 
+  },
+);
 
 const InterviewRequestSchema = new Schema<IInterview>(
   {
@@ -65,35 +89,13 @@ const InterviewRequestSchema = new Schema<IInterview>(
       ref: "InterviewSession",
     },
 
-    availableTimeSlot: {
-      startTime: Date,
-      endTime: Date,
-    },
     acceptedTime: Date,
-    interviewStartTime: Date,
-    interviewEndTime: Date,
-    assignmentTimestamp: Date,
-    expirationTimestamp: Date,
-    
-    notifiedUsers: [
-      {
-        userId: {
-          type: Schema.Types.ObjectId,
-          ref: "User",
-          required: true,
-        },
-        status: {
-          type: String,
-          enum: ["PENDING", "ACCEPTED", "REJECTED"],
-          default: "PENDING",
-        },
-        notifiedAt: {
-          type: Date,
-          default: Date.now,
-        },
-        respondedAt: Date,
-      }
-    ]
+    expirationTimestamp: {
+      type: Date,
+      required: true
+    },
+
+    notifiedUsers: [NotifiedUserSchema]
   },
   {
     timestamps: true,

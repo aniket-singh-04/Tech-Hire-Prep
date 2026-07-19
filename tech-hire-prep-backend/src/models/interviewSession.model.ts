@@ -24,23 +24,20 @@ export interface IInterviewSession {
   intervieweeJoinedAt?: Date;
   interviewerLeftAt?: Date;
   intervieweeLeftAt?: Date;
-  notes?: string;
-  feedback?: string;
-  rating?: number;
-  ratingCount?: number;
-  ratingTotal?: number;
   reports?: Array<{
     userId: mongoose.Types.ObjectId;
     reason: string;
     createdAt: Date;
   }>;
   feedbackEntries?: Array<{
-    userId: mongoose.Types.ObjectId;
+    fromUserId: mongoose.Types.ObjectId;
+    toUserId: mongoose.Types.ObjectId;
     feedback: string;
     createdAt: Date;
   }>;
   ratings?: Array<{
-    userId: mongoose.Types.ObjectId;
+    fromUserId: mongoose.Types.ObjectId;
+    toUserId: mongoose.Types.ObjectId;
     value: number;
     createdAt: Date;
   }>;
@@ -104,27 +101,6 @@ const InterviewSessionSchema = new Schema<IInterviewSession>(
     intervieweeLeftAt: {
       type: Date,
     },
-    notes: {
-      type: String,
-    },
-    feedback: {
-      type: String,
-    },
-    rating: {
-      type: Number,
-      min: 1,
-      max: 5,
-    },
-    ratingCount: {
-      type: Number,
-      default: 0,
-      min: 0,
-    },
-    ratingTotal: {
-      type: Number,
-      default: 0,
-      min: 0,
-    },
     reports: [
       {
         userId: {
@@ -145,7 +121,12 @@ const InterviewSessionSchema = new Schema<IInterviewSession>(
     ],
     feedbackEntries: [
       {
-        userId: {
+        fromUserId: {
+          type: Schema.Types.ObjectId,
+          ref: "User",
+          required: true,
+        },
+        toUserId: {
           type: Schema.Types.ObjectId,
           ref: "User",
           required: true,
@@ -153,7 +134,6 @@ const InterviewSessionSchema = new Schema<IInterviewSession>(
         feedback: {
           type: String,
           required: true,
-          trim: true,
         },
         createdAt: {
           type: Date,
@@ -163,7 +143,12 @@ const InterviewSessionSchema = new Schema<IInterviewSession>(
     ],
     ratings: [
       {
-        userId: {
+        fromUserId: {
+          type: Schema.Types.ObjectId,
+          ref: "User",
+          required: true,
+        },
+        toUserId: {
           type: Schema.Types.ObjectId,
           ref: "User",
           required: true,

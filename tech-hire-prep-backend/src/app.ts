@@ -1,4 +1,9 @@
-import express, { type Application, type NextFunction, type Request, type Response } from "express";
+import express, {
+  type Application,
+  type NextFunction,
+  type Request,
+  type Response,
+} from "express";
 import cookieParser from "cookie-parser";
 import { AppError } from "./utils/appError.ts";
 import { ENV } from "./config/envConfig.ts";
@@ -18,7 +23,10 @@ import paymentRoute from "./routes/payment.routes.ts";
 export const API_V1_PREFIX = "/api/v1";
 
 const corsOptions = {
-  origin(origin: string | undefined, callback: (error: Error | null, allow?: boolean) => void) {
+  origin(
+    origin: string | undefined,
+    callback: (error: Error | null, allow?: boolean) => void,
+  ) {
     if (!origin) {
       callback(null, true);
       return;
@@ -39,6 +47,37 @@ const corsOptions = {
 
 export const createApp = (): Application => {
   const app: Application = express();
+  const logger = (req: Request, res: Response, next: NextFunction) => {
+    const start = Date.now();
+
+    console.log("\n========== REQUEST ==========");
+    console.log(`${req.method} ${req.originalUrl}`);
+    console.log("Body:", req.body);
+
+    const originalSend = res.send;
+    const originalJson = res.json;
+
+    const logResponse = (body:any) => {
+      console.log("========== RESPONSE ==========");
+      console.log("Status:", res.statusCode);
+      console.log("Body:", body);
+      console.log(`Time: ${Date.now() - start} ms`);
+    };
+
+    res.send = function (body) {
+      logResponse(body);
+      return originalSend.call(this, body);
+    };
+
+    res.json = function (body) {
+      logResponse(body);
+      return originalJson.call(this, body);
+    };
+
+    next();
+  };
+
+  app.use(logger);
 
   app.disable("x-powered-by");
   app.set("trust proxy", 1);
@@ -80,7 +119,9 @@ export const createApp = (): Application => {
   app.use(`${API_V1_PREFIX}/editor`, editorRoute);
   app.use(`${API_V1_PREFIX}/payments`, paymentRoute);
 
-  app.use((req: Request, res: Response, next: NextFunction) => next(new AppError("Route not found.", 404)));
+  app.use((req: Request, res: Response, next: NextFunction) =>
+    next(new AppError("Route not found.", 404)),
+  );
   app.use(globalErrorHandler);
 
   return app;

@@ -1,68 +1,40 @@
 import { Request, Response } from "express";
 import { asyncHandler } from "../utils/asyncHandler.ts";
 import { ok } from "../common/response.ts";
-import InterviewSessionModel from "../models/interviewSession.model.ts";
-import { AppError } from "../utils/appError.ts";
-import { signWebrtcToken } from "../services/token.service.ts";
+import { createWebrtcToken, getWebrtcRoomInfo, validateIceCandidate, } from "../services/webrtc.service.ts";
 
-const stunServers = [
-  { urls: "stun:stun.l.google.com:19302" },
-];
+export const webrtcTokenController = asyncHandler(
+  async (req: Request, res: Response) => {
+    const result = await createWebrtcToken(
+      req.user!.id,
+      req.body.sessionId,
+      req.body.roomId,
+    );
 
-const getSessionForWebrtc = async (userId: string, sessionId?: string, roomId?: string) => {
-  const session = sessionId
-    ? await InterviewSessionModel.findById(sessionId)
-    : roomId
-      ? await InterviewSessionModel.findOne({ roomId })
-      : null;
+    return ok(res, result, "Token generated successfully");
+  },
+);
 
-  if (!session) {
-    throw new AppError("Session not found", 404);
-  }
+export const webrtcRoomController = asyncHandler(
+  async (req: Request, res: Response) => {
+    const result = await getWebrtcRoomInfo(
+      req.user!.id,
+      req.body.sessionId,
+      req.body.roomId,
+    );
 
-  if (session.interviewerId.toString() !== userId && session.intervieweeId.toString() !== userId) {
-    throw new AppError("Unauthorized access to interview room", 403);
-  }
+    return ok(res, result, "Room info fetched");
+  },
+);
 
-  return session;
-};
+export const webrtcIceCandidateController = asyncHandler(
+  async (req: Request, res: Response) => {
+    const result = await validateIceCandidate(
+      req.user!.id,
+      req.body.sessionId,
+      req.body.roomId,
+    );
 
-export const webrtcTokenController = asyncHandler(async (req: Request, res: Response) => {
-  const session = await getSessionForWebrtc(req.user!.id, req.body.sessionId, req.body.roomId);
-
-  const token = signWebrtcToken({
-    userId: req.user!.id,
-    sessionId: session._id.toString(),
-    roomId: session.roomId,
-    purpose: "webrtc",
-  });
-
-  return ok(res, {
-    token,
-    sessionId: session._id.toString(),
-    roomId: session.roomId,
-    iceServers: stunServers,
-  }, "Token generated successfully");
-});
-
-export const webrtcRoomController = asyncHandler(async (req: Request, res: Response) => {
-  const session = await getSessionForWebrtc(req.user!.id, req.body.sessionId, req.body.roomId);
-
-  return ok(res, {
-    sessionId: session._id.toString(),
-    roomId: session.roomId,
-    iceServers: stunServers,
-    status: session.status,
-  }, "Room info fetched");
-});
-
-export const webrtcIceCandidateController = asyncHandler(async (req: Request, res: Response) => {
-  const session = await getSessionForWebrtc(req.user!.id, req.body.sessionId, req.body.roomId);
-
-  // HTTP fallback for signaling; socket.io remains the real-time path.
-  return ok(res, {
-    sessionId: session._id.toString(),
-    roomId: session.roomId,
-    accepted: true,
-  }, "Candidate signaled");
-});
+    return ok(res, result, "Candidate signaled");
+  },
+);

@@ -3,7 +3,7 @@ import { validateBody, validateParams } from "../middlewares/validation.middlewa
 import { protect } from "../middlewares/auth.middleare.ts";
 import { scheduleSessionSchema, sessionIdParamsSchema, rescheduleSessionSchema, reportSessionSchema, rateSessionSchema, feedbackSchema } from "../validators/interviewSession.validation.ts";
 import {
-  scheduleSessionController, upcomingSessionsController, historySessionsController, getSessionController, rescheduleSessionController, cancelSessionController, joinSessionController, leaveSessionController, startSessionController, endSessionController, reconnectSessionController, reportSessionController, rateSessionController, feedbackSessionController } from "../controllers/interviewSession.controller.ts";
+  scheduleSessionController, upcomingSessionsController, historySessionsController, getSessionController, rescheduleSessionController, cancelSessionController, joinSessionController, leaveSessionController, reconnectSessionController, reportSessionController, rateSessionController, feedbackSessionController } from "../controllers/interviewSession.controller.ts";
 
 const sessionRoute: ExpressRouter = Router();
 
@@ -16,8 +16,7 @@ sessionRoute.patch("/:sessionId/reschedule", validateParams(sessionIdParamsSchem
 sessionRoute.post("/:sessionId/cancel", validateParams(sessionIdParamsSchema), cancelSessionController);
 sessionRoute.post("/:sessionId/join", validateParams(sessionIdParamsSchema), joinSessionController);
 sessionRoute.post("/:sessionId/leave", validateParams(sessionIdParamsSchema), leaveSessionController);
-sessionRoute.post("/:sessionId/start", validateParams(sessionIdParamsSchema), startSessionController);
-sessionRoute.post("/:sessionId/end", validateParams(sessionIdParamsSchema), endSessionController);
+// when webrct connect mark session active 
 sessionRoute.post("/:sessionId/reconnect", validateParams(sessionIdParamsSchema), reconnectSessionController);
 sessionRoute.post("/:sessionId/report", validateParams(sessionIdParamsSchema), validateBody(reportSessionSchema), reportSessionController);
 sessionRoute.post("/:sessionId/rate", validateParams(sessionIdParamsSchema), validateBody(rateSessionSchema), rateSessionController);
