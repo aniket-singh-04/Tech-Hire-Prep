@@ -116,7 +116,7 @@ export const createApp = (): Application => {
   app.use(`${API_V1_PREFIX}/session`, sessionRoute);
   app.use(`${API_V1_PREFIX}/webrtc`, webrtcRoute);
   app.use(`${API_V1_PREFIX}/wallet`, walletRoute);
-  app.use(`${API_V1_PREFIX}/editor`, editorRoute);
+  // app.use(`${API_V1_PREFIX}/editor`, editorRoute);
   app.use(`${API_V1_PREFIX}/payments`, paymentRoute);
 
   app.use((req: Request, res: Response, next: NextFunction) =>

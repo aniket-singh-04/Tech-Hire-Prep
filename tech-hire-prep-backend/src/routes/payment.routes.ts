@@ -19,8 +19,8 @@ paymentRoute.get("/history", validateQuery(paymentHistoryQuerySchema), getPaymen
 paymentRoute.get("/:paymentId", validateParams(paymentIdParamsSchema), getPaymentDetailsController);
 
 // Subscriptions
-paymentRoute.post("/subscriptions/subscribe", validateBody(subscribeSchema), subscribeController);
-paymentRoute.post("/subscriptions/cancel", validateBody(cancelSubscriptionSchema), cancelSubscriptionController);
-paymentRoute.get("/subscriptions/status", subscriptionStatusController);
+// paymentRoute.post("/subscriptions/subscribe", validateBody(subscribeSchema), subscribeController);
+// paymentRoute.post("/subscriptions/cancel", validateBody(cancelSubscriptionSchema), cancelSubscriptionController);
+// paymentRoute.get("/subscriptions/status", subscriptionStatusController);
 
 export default paymentRoute;

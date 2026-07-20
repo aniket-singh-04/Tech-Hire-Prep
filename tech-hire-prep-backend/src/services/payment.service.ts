@@ -6,7 +6,8 @@ import { PaymentRepository } from "../repositories/payment.repository.ts";
 import { Currency, PaymentGateway, PaymentStatus } from "../types/payment.types.ts";
 import { AppError } from "../utils/appError.ts";
 import { ENV } from "../config/envConfig.ts";
-import InterviewSessionModel, { InterviewSessionStatus } from "../models/interviewSession.model.ts";
+import { InterviewSessionStatus } from "../models/interviewSession.model.ts";
+import interviewSessionRepository from "../repositories/interviewSession.repository.ts";
 
 const razorpay = new Razorpay({
   key_id: ENV.RAZORPAY_KEY_ID || "",
@@ -17,14 +18,12 @@ const promoteSessionAfterPayment = async (payment: any) => {
   const sessionId = payment?.metadata?.sessionId;
   if (!sessionId) return;
 
-  const session = await InterviewSessionModel.findById(sessionId);
+  const session = await interviewSessionRepository.findById(sessionId);
   if (!session) return;
   if ([InterviewSessionStatus.COMPLETED, InterviewSessionStatus.CANCELLED].includes(session.status)) return;
 
   if (session.status === InterviewSessionStatus.CREATED || session.status === InterviewSessionStatus.SCHEDULED) {
-    session.status = InterviewSessionStatus.READY;
-    session.readyAt = session.readyAt ?? new Date();
-    await session.save();
+    await interviewSessionRepository.updateSessionStatus(new Types.ObjectId(sessionId), {status: InterviewSessionStatus.READY, readyAt: session.readyAt ?? new Date()});
   }
 };
 
@@ -151,10 +150,7 @@ export const handleWebhookService = async (
   rawBody: string,
   signature: string
 ) => {
-  const secret =
-    process.env.RAZORPAY_WEBHOOK_SECRET ||
-    process.env.RAZORPAY_KEY_SECRET ||
-    "";
+  const secret = ENV.RAZORPAY_WEBHOOK_SECRET || ENV.RAZORPAY_KEY_SECRET || "";
 
   const expectedSignature = crypto
     .createHmac("sha256", secret)

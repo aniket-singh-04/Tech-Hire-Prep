@@ -290,9 +290,15 @@ export const ENV = Object.freeze({
 
     /* ----------------------------- Razorpay ------------------------------ */
 
-    RAZORPAY_KEY_ID,
+    RAZORPAY_KEY_ID: getString(
+        "RAZORPAY_KEY_ID",
+        ""
+    ),
 
-    RAZORPAY_KEY_SECRET,
+    RAZORPAY_KEY_SECRET: getString(
+        "RAZORPAY_KEY_SECRET",
+        ""
+    ),
 
     RAZORPAY_WEBHOOK_SECRET: getString(
         "RAZORPAY_WEBHOOK_SECRET",
