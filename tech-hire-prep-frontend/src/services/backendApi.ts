@@ -11,23 +11,10 @@ const withQuery = (path: string, query: Record<string, string | number | undefin
   return qs ? `${path}?${qs}` : path;
 };
 
-const unwrapData = <T,>(response: any): T => response?.data ?? response;
+const unwrapData = <T,>(response: any): T => {
+  console.log(response)
+  return response?.data ?? response};
 
-const normalizeMatchStatus = (status?: string) => {
-  switch ((status ?? "").toUpperCase()) {
-    case "SEARCHING":
-      return "pending";
-    case "ASSIGNED":
-    case "MATCHED":
-      return "matched";
-    case "CANCELLED":
-      return "cancelled";
-    case "EXPIRED":
-      return "expired";
-    default:
-      return "idle";
-  }
-};
 
 
 const toIso = (value?: string | Date | null) => (value ? new Date(value).toISOString() : undefined);
@@ -37,7 +24,7 @@ const normalizeMatchRequest = (request: any) => {
   const sessionId = request.sessionId ?? request.interviewSessionId;
   return {
     requestId: String(request.requestId ?? request._id ?? request.id),
-    status: normalizeMatchStatus(request.status),
+    status: request.status,
     sessionId: sessionId ? String(sessionId) : undefined,
     expiresAt: toIso(request.expiresAt ?? request.expirationTimestamp),
     requesterId: request.requesterId ? String(request.requesterId) : request.userId ? String(request.userId) : undefined,
@@ -171,7 +158,7 @@ export const matchApi = {
 };
 
 export const sessionApi = {
-  schedule: (payload: { matchId: string; startTime: string; endTime: string }) =>
+  schedule: (payload: { sessionId: string; startTime: string; endTime: string }) =>
     api.post<any>("/api/v1/session/schedule", payload).then((response) => normalizeSession(unwrapData(response))),
   getUpcoming: () => api.get<any>("/api/v1/session/upcoming").then((response) => {
     const data = unwrapData<any>(response);
@@ -186,8 +173,6 @@ export const sessionApi = {
     api.patch<any>(`/api/v1/session/${sessionId}/reschedule`, payload).then((response) => normalizeSession(unwrapData(response))),
   join: (sessionId: string) => api.post<any>(`/api/v1/session/${sessionId}/join`).then((response) => normalizeSession(unwrapData(response))),
   leave: (sessionId: string) => api.post<any>(`/api/v1/session/${sessionId}/leave`).then((response) => normalizeSession(unwrapData(response))),
-  start: (sessionId: string) => api.post<any>(`/api/v1/session/${sessionId}/start`).then((response) => normalizeSession(unwrapData(response))),
-  end: (sessionId: string) => api.post<any>(`/api/v1/session/${sessionId}/end`).then((response) => normalizeSession(unwrapData(response))),
   reconnect: (sessionId: string) => api.post<any>(`/api/v1/session/${sessionId}/reconnect`).then((response) => normalizeSession(unwrapData(response))),
   cancel: (sessionId: string) => api.post<any>(`/api/v1/session/${sessionId}/cancel`).then((response) => normalizeSession(unwrapData(response))),
   rate: (sessionId: string, rating: number) =>

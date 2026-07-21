@@ -38,8 +38,6 @@ export enum WeekDay {
   FRIDAY = "FRIDAY",
   SATURDAY = "SATURDAY",
   SUNDAY = "SUNDAY",
-  ALL_WORKING_DAYS = "ALL_WORKING_DAYS",
-  ALL = "24*7"
 }
 
 /* ===========================

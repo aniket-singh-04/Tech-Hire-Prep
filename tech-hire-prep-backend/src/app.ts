@@ -52,7 +52,8 @@ export const createApp = (): Application => {
 
     console.log("\n========== REQUEST ==========");
     console.log(`${req.method} ${req.originalUrl}`);
-    console.log("Body:", req.body);
+      console.log("Body:");
+      console.dir(req.body, { depth: null });
 
     const originalSend = res.send;
     const originalJson = res.json;
@@ -60,7 +61,8 @@ export const createApp = (): Application => {
     const logResponse = (body:any) => {
       console.log("========== RESPONSE ==========");
       console.log("Status:", res.statusCode);
-      console.log("Body:", body);
+      console.log("Body:");
+      console.dir(body, { depth: null });
       console.log(`Time: ${Date.now() - start} ms`);
     };
 
@@ -77,7 +79,7 @@ export const createApp = (): Application => {
     next();
   };
 
-  app.use(logger);
+  // app.use(logger);
 
   app.disable("x-powered-by");
   app.set("trust proxy", 1);

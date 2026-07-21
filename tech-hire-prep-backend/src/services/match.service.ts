@@ -10,6 +10,7 @@ import { AppError } from "../utils/appError.ts";
 import { randomUUID } from "crypto";
 import { Types } from "mongoose";
 import interviewSessionRepository from "../repositories/interviewSession.repository.ts";
+import { now } from "../utils/date.utils.ts";
 
 export const requestMatchService = async (input: RequestMatchServiceInput) => {
     const userObjectId = new Types.ObjectId(input.userId);
@@ -25,7 +26,7 @@ export const requestMatchService = async (input: RequestMatchServiceInput) => {
     }
 
     let active = await MatchRepository.findActiveRequestByUserId(userObjectId);
-    if (active && active.expirationTimestamp <= new Date()) {
+    if ((active && active.expirationTimestamp <= new Date()) || (active?.status && active.status === matchStatus.EXPIRED)) {
         await MatchRepository.expireRequest(active._id);
         active = null;
     }
@@ -45,10 +46,10 @@ export const requestMatchService = async (input: RequestMatchServiceInput) => {
 
     const allUsers = await profileRepository.othersCandidateProfile(input.userId);
     const allUserIds = allUsers.map(user => user.userId.toString());
-    
+
     // Get all profiles of users
     const allUserProfiles = await profileRepository.findManyByUserIds(allUserIds);
-    
+
     // Get active sessions to know who is busy
     const activeSessions = await interviewSessionRepository.findActiveSessions();
 
@@ -78,9 +79,9 @@ export const requestMatchService = async (input: RequestMatchServiceInput) => {
     }
 
     const eligibleUserIds = eligibleProfiles.map(profile => profile.userId);
+    await MatchRepository.addNotifiedUsers(request._id, eligibleUserIds,);
     await MatchRepository.updateRequestStatus(request._id, matchStatus.MATCHED);
-    await MatchRepository.addNotifiedUsers( request._id as Types.ObjectId, eligibleUserIds, );
-    
+
     for (const candidateId of eligibleUserIds) {
         emitToUser(candidateId.toString(), "interview-request", {
             requestId: request._id,
@@ -104,8 +105,8 @@ export const requestMatchService = async (input: RequestMatchServiceInput) => {
 const isWithinAvailability = (availability: { day: string; startTime: string; endTime: string }[] | undefined) => {
     if (!availability || availability.length === 0) return true;
 
-    const currentDay = new Date().toLocaleString("en-US", { weekday: "long", timeZone: "Asia/Kolkata" }).toUpperCase();
-    const currentTimeStr = new Date().toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata", });
+    const currentDay = now().englishDay.toUpperCase();
+    const currentTimeStr = now().timeWithMin;
 
     const todaySlots = availability.filter((slot) => slot.day === currentDay);
     if (todaySlots.length === 0) return false;
@@ -168,9 +169,9 @@ const ensureAcceptEligibility = async (request: any, userId: string) => {
 export const getVisibleMatchRequestService = async (userId: string) => {
     const candidateProfile = await profileRepository.findByUserId(userId);
     if (!candidateProfile) return null;
-    
+
     if (candidateProfile.profileCompletion < 75) return null;
-    
+
     const activeRequests = await MatchRepository.findSearchingRequests();
     if (activeRequests.length === 0) return null;
 
@@ -184,6 +185,9 @@ export const getVisibleMatchRequestService = async (userId: string) => {
 
         const requesterProfile = await profileRepository.findByUserId(request.userId.toString());
         if (!requesterProfile) continue;
+        if ( request.notifiedUsers?.some( (n) => n.userId.toString() === candidateProfile.userId.toString())) {
+            continue;
+        }
         if (candidateProfile.profileCompletion < requesterProfile.profileCompletion) continue;
         if (candidateProfile.targetRole !== request.preferredRole) continue;
         if (!isWithinAvailability(candidateProfile.availability as { day: string; startTime: string; endTime: string }[] | undefined)) continue;

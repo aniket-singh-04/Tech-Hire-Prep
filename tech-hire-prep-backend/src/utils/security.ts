@@ -9,10 +9,7 @@ export const normalizeEmail = (email: string): string => {
 export const sha256 = (value: string) =>
   crypto.createHash("sha256").update(value).digest("hex");
 
-
-export const generateOpaqueToken = (
-  bytes = 48,
-): string => {
+export const generateOpaqueToken = (bytes = 48): string => {
   return crypto.randomBytes(bytes).toString("hex");
 };
 
@@ -27,7 +24,6 @@ export const maskEmail = (email: string) => {
   return `${localPart[0]}${"*".repeat(Math.max(localPart.length - 2, 1))}${localPart.slice(-1)}@${domain}`;
 };
 
-
 export const ensureSessionTimeActive = (session: any) => {
   const now = new Date();
   if (!session.startTime || !session.endTime) {
@@ -39,7 +35,12 @@ export const ensureSessionTimeActive = (session: any) => {
 };
 
 export const ensureJoinable = (session: any) => {
-  if ([InterviewSessionStatus.COMPLETED, InterviewSessionStatus.CANCELLED].includes(session.status)) {
+  if (
+    [
+      InterviewSessionStatus.COMPLETED,
+      InterviewSessionStatus.CANCELLED,
+    ].includes(session.status)
+  ) {
     throw new AppError("This session can no longer be joined.", 400);
   }
 };

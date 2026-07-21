@@ -32,6 +32,7 @@ export const historySessionsController = asyncHandler(async (req: Request, res: 
 });
 
 export const scheduleSessionController = asyncHandler(async (req: Request, res: Response) => {
+  console.log(req.body)
   const result = await scheduleSessionService(req.user!.id, req.body.sessionId, req.body.startTime, req.body.endTime);
   return created(res, result, "Session scheduled successfully");
 });

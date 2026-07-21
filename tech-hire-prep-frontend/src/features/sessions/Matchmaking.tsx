@@ -64,7 +64,7 @@ export const Matchmaking: React.FC = () => {
   }, [loadStatus, pushToast]);
 
   useEffect(() => {
-    if (queueStatus?.status === 'pending' && (!queueStatus.requesterId || queueStatus.requesterId === user?.id)) {
+    if (queueStatus?.status === 'CREATED' && (!queueStatus.requesterId || queueStatus.requesterId === user?.id)) {
       pollingRef.current = setInterval(loadStatus, 5000);
     } else if (pollingRef.current) {
       clearInterval(pollingRef.current);
@@ -140,9 +140,9 @@ export const Matchmaking: React.FC = () => {
     }
   };
 
-  const isIncomingRequest = queueStatus?.status === 'pending' && Boolean(queueStatus.requesterId) && queueStatus.requesterId !== user?.id;
-  const isQueued = queueStatus?.status === 'pending' && !isIncomingRequest;
-  const isMatched = queueStatus?.status === 'matched';
+  const isIncomingRequest = queueStatus?.status === 'CREATED' && Boolean(queueStatus.requesterId) && queueStatus.requesterId !== user?.id;
+  const isQueued = queueStatus?.status === 'CREATED' && !isIncomingRequest;
+  const isMatched = queueStatus?.status === 'CREATED';
 
   return (
     <div className="space-y-6 animate-fade-in max-w-2xl ">

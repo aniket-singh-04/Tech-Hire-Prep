@@ -45,8 +45,6 @@ export const WeekDay = {
   FRIDAY: "FRIDAY",
   SATURDAY: "SATURDAY",
   SUNDAY: "SUNDAY",
-  ALL_WORKING_DAYS: "ALL_WORKING_DAYS",
-  ALL: "24*7",
 } as const;
 
 export type WeekDay =
@@ -105,7 +103,7 @@ export interface OnboardingStatus {
 }
 
 // ─── Interview Request ────────────────────────────────────────────────────────
-export type InterviewRequestStatus = 'pending' | 'matched' | 'cancelled' | 'expired';
+export type InterviewRequestStatus = "CREATED" | "SCHEDULED" | "READY" | "JOINED" | "ACTIVE" | "COMPLETED" | "CANCELLED";
 
 export interface InterviewRequest {
   requestId: string;
@@ -124,7 +122,7 @@ export interface InterviewRequest {
 }
 
 // ─── Interview Session ────────────────────────────────────────────────────────
-export type SessionStatus = 'pending' | 'matched' | 'scheduled' | 'live' | 'completed' | 'cancelled';
+export type SessionStatus = "CREATED" | "SCHEDULED" | "READY" | "JOINED" | "ACTIVE" | "COMPLETED" | "CANCELLED";
 export type SessionParticipantRole = 'candidate' | 'interviewer';
 
 export interface SessionParticipant {

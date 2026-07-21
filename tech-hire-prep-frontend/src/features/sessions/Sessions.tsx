@@ -93,7 +93,7 @@ const SessionRow: React.FC<{
           {fmt(session.scheduledAt ?? session.startedAt ?? session.endedAt)}
         </p>
       </div>
-      {session.status === 'live' && onJoin && (
+      {session.status === 'READY' && onJoin && (
         <Button size="sm" onClick={e => { e.stopPropagation(); onJoin(); }} className="bg-success hover:bg-green-700">Join</Button>
       )}
       {session.scorecard && (
@@ -163,7 +163,7 @@ export const Sessions: React.FC = () => {
       </div>
 
       <Card>
-        <CardContent className="pt-2">
+        <div className="p-0">
           {upcoming.length === 0 ? (
             <div className="text-center py-16">
               <VscCalendar size={40} className="mx-auto mb-4 text-muted" />
@@ -179,12 +179,12 @@ export const Sessions: React.FC = () => {
                   session={s}
                   paymentState={paymentBySession[s.id]}
                   onClick={() => navigate(`/sessions/${s.id}`)}
-                  onJoin={s.status === 'live' ? () => navigate(`/room/${s.id}`) : undefined}
+                  onJoin={s.status === 'READY' ? () => navigate(`/room/${s.id}`) : undefined}
                 />
               ))}
             </div>
           )}
-        </CardContent>
+        </div>
       </Card>
     </div>
   );

@@ -84,6 +84,7 @@ const buildParticipants = (session: any) => {
 
 const toSessionResponse = (session: any) => {
   if (!session) return null;
+  console.log(session)
 
   const matchId = session.matchId && typeof session.matchId === "object" && "_id" in session.matchId
     ? session.matchId._id
@@ -99,7 +100,7 @@ const toSessionResponse = (session: any) => {
     requestIds: [toId(matchId)].filter(Boolean),
     participants: buildParticipants(session),
     status: session.status,
-    scheduledAt: toIso(session.scheduledAt ?? session.startTime ?? session.createdAt),
+    scheduledAt: toIso(session.scheduledAt ?? session.startTime),
     startedAt: toIso(session.startTime),
     endedAt: toIso(session.endTime),
     roomId: session.roomId,
@@ -151,7 +152,7 @@ export const getSessionService = async (sessionId: string, userId: string) => {
 
 export const getUpcomingSessionsService = async (userId: string) => {
   const sessions = await interviewSessionRepository.findUserSessions(new Types.ObjectId(userId));
-
+  console.log(userId)
   return sessions.map(toSessionResponse);
 };
 
@@ -162,6 +163,9 @@ export const getHistorySessionsService = async (userId: string) => {
 };
 
 export const scheduleSessionService = async (userId: string, sessionId: string, startTime: Date, endTime: Date) => {
+  if(startTime > endTime){
+    throw new AppError("Invalid time (endtime is greater).", 404)
+  }
   const session = await interviewSessionRepository.findById(new Types.ObjectId(sessionId));
 
   if (!session) {
@@ -179,9 +183,18 @@ export const scheduleSessionService = async (userId: string, sessionId: string, 
 };
 
 export const rescheduleSessionService = async (sessionId: string, userId: string, startTime: Date, endTime: Date) => {
+  if(startTime > endTime){
+    throw new AppError("Invalid time (endtime is greater).", 404)
+  }
   const session = await getOwnedSessionById(sessionId, userId);
   ensureJoinable(session);
   ensureInterviewerId(session, userId);
+    const confirmedPayment = await PaymentRepository.findPaidByUserAndSession(session.intervieweeId.toString(), sessionId);
+
+  if (confirmedPayment) {
+    throw new AppError("Candidate has completed the payment so reschedule is not possible.", 402);
+  }
+  
   await interviewSessionRepository.updateScedule(session._id, new Date(startTime), new Date(endTime), InterviewSessionStatus.SCHEDULED)
 
   emitToUser(session.intervieweeId.toString(), "session-rescheduled", { sessionId, startTime, endTime });

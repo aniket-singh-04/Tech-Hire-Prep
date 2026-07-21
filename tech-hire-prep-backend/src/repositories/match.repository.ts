@@ -18,7 +18,7 @@ export class MatchRepository {
   }
 
   static async findSearchingRequests() {
-    return InterviewRequestModel.find({ status: matchStatus.SEARCHING }).sort({
+    return InterviewRequestModel.find({ status: matchStatus.MATCHED }).sort({
       createdAt: -1,
     });
   }

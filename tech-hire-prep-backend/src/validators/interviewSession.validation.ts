@@ -5,7 +5,7 @@ export const sessionIdParamsSchema = z.object({
 }).strict();
 
 export const scheduleSessionSchema = z.object({
-  matchId: z.string().regex(/^[0-9a-fA-F]{24}$/),
+  sessionId: z.string().regex(/^[0-9a-fA-F]{24}$/),
   startTime: z.coerce.date(),
   endTime: z.coerce.date(),
 }).strict();
