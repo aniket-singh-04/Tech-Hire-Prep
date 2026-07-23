@@ -23,13 +23,19 @@ export class MatchRepository {
     });
   }
 
-  static async findActiveRequestByUserId(userId: Types.ObjectId) {
-    return InterviewRequestModel.findOne({
-      userId,
-      status: { $in: [matchStatus.SEARCHING] },
+  static async findAwaitingAcceptanceRequests() {
+    return InterviewRequestModel.find({
+        status: matchStatus.MATCHED,
+        expirationTimestamp: { $gte: new Date() }
     }).sort({ createdAt: -1 });
   }
 
+  static async findActiveRequestByUserId(userId: Types.ObjectId) {
+    return InterviewRequestModel.findOne({
+      userId,
+        status: { $in: [matchStatus.SEARCHING, matchStatus.MATCHED] },
+    }).sort({ createdAt: -1 });
+      }
   static async findRequestById(id: Types.ObjectId) {
     return InterviewRequestModel.findById(id);
   }
@@ -166,3 +172,4 @@ export class MatchRepository {
     );
   }
 }
+

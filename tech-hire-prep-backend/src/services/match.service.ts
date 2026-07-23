@@ -26,13 +26,13 @@ export const requestMatchService = async (input: RequestMatchServiceInput) => {
     }
 
     let active = await MatchRepository.findActiveRequestByUserId(userObjectId);
-    if ((active && active.expirationTimestamp <= new Date()) || (active?.status && active.status === matchStatus.EXPIRED)) {
-        await MatchRepository.expireRequest(active._id);
-        active = null;
-    }
-
     if (active) {
-        throw new AppError("You already have an active matchmaking request.", 409);
+        if (active.expirationTimestamp <= new Date() || active.status === matchStatus.EXPIRED) {
+            await MatchRepository.expireRequest(active._id);
+            active = null;
+        } else {
+            throw new AppError("You already have an active matchmaking request.", 409);
+        }
     }
 
     const expiresAt = new Date(Date.now() + MATCH_QUEUE.REQUEST_EXPIRY_MINUTES * 60000);
@@ -45,6 +45,7 @@ export const requestMatchService = async (input: RequestMatchServiceInput) => {
 
 
     const allUsers = await profileRepository.othersCandidateProfile(input.userId);
+
     const allUserIds = allUsers.map(user => user.userId.toString());
 
     // Get all profiles of users
@@ -167,25 +168,27 @@ const ensureAcceptEligibility = async (request: any, userId: string) => {
 };
 
 export const getVisibleMatchRequestService = async (userId: string) => {
-    const candidateProfile = await profileRepository.findByUserId(userId);
-    if (!candidateProfile) return null;
-
-    if (candidateProfile.profileCompletion < 75) return null;
-
-    const activeRequests = await MatchRepository.findSearchingRequests();
-    if (activeRequests.length === 0) return null;
-
     const busyUserIds = await buildBusyUserSet();
     const candidateBusy = busyUserIds.has(userId);
     if (candidateBusy) return null;
 
+    const candidateProfile = await profileRepository.findByUserId(userId);
+    if (!candidateProfile) return null;
+    if (candidateProfile.profileCompletion < 75) return null;
+
+    const activeRequests = await MatchRepository.findAwaitingAcceptanceRequests();
+    if (activeRequests.length === 0) return null;
+
+    const requesterIds = [...new Set(activeRequests.map(r => r.userId.toString()))];
+    const requesterProfiles = await profileRepository.findManyByUserIds(requesterIds);
+    const profileMap = new Map(requesterProfiles.map(p => [p.userId.toString(), p]));
+
     for (const request of activeRequests) {
         if (request.userId.toString() === userId) continue;
-        if (request.expirationTimestamp && new Date(request.expirationTimestamp).getTime() < Date.now()) continue;
-
-        const requesterProfile = await profileRepository.findByUserId(request.userId.toString());
+        const requesterProfile = profileMap.get(request.userId.toString());
         if (!requesterProfile) continue;
-        if ( request.notifiedUsers?.some( (n) => n.userId.toString() === candidateProfile.userId.toString())) {
+
+        if (request.notifiedUsers?.some((n) => n.userId.toString() === candidateProfile.userId.toString())) {
             continue;
         }
         if (candidateProfile.profileCompletion < requesterProfile.profileCompletion) continue;
@@ -297,11 +300,4 @@ export const cancelMatchService = async (userId: string) => {
 
     return updated;
 };
-
-
-
-
-
-
-
 
