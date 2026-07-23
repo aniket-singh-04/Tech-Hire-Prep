@@ -20,7 +20,7 @@ export const reportSessionSchema = z.object({
 }).strict();
 
 export const rateSessionSchema = z.object({
-  rating: z.number().min(1).max(5),
+  rating: z.number().int().min(1).max(5),
 }).strict();
 
 export const feedbackSchema = z.object({

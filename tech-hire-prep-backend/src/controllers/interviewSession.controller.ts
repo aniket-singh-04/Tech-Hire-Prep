@@ -22,17 +22,20 @@ export const getSessionController = asyncHandler(async (req: Request, res: Respo
 });
 
 export const upcomingSessionsController = asyncHandler(async (req: Request, res: Response) => {
-  const result = await getUpcomingSessionsService(req.user!.id);
+  const page = parseInt(req.query.page as string) || 1;
+  const limit = parseInt(req.query.limit as string) || 10;
+  const result = await getUpcomingSessionsService(req.user!.id, page, limit);
   return ok(res, result, "Upcoming sessions fetched successfully");
 });
 
 export const historySessionsController = asyncHandler(async (req: Request, res: Response) => {
-  const result = await getHistorySessionsService(req.user!.id);
+  const page = parseInt(req.query.page as string) || 1;
+  const limit = parseInt(req.query.limit as string) || 10;
+  const result = await getHistorySessionsService(req.user!.id, page, limit);
   return ok(res, result, "History sessions fetched successfully");
 });
 
 export const scheduleSessionController = asyncHandler(async (req: Request, res: Response) => {
-  console.log(req.body)
   const result = await scheduleSessionService(req.user!.id, req.body.sessionId, req.body.startTime, req.body.endTime);
   return created(res, result, "Session scheduled successfully");
 });
@@ -76,3 +79,4 @@ export const feedbackSessionController = asyncHandler(async (req: Request, res: 
   const result = await feedbackSessionService(req.params.sessionId as string, req.user!.id, req.body.feedback);
   return ok(res, result, "Feedback submitted successfully");
 });
+

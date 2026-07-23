@@ -2,7 +2,6 @@ import { Types } from "mongoose";
 import InterviewSessionModel, { InterviewSessionStatus } from "../models/interviewSession.model.ts";
 
 class InterviewSessionRepository {
-
   // Find active interview sessions
   async findActiveSessions() {
     return InterviewSessionModel.find({
@@ -45,31 +44,30 @@ class InterviewSessionRepository {
     );
   }
 
-  // Find session by session id 
+  // Find session by session id
   async findById(sessionId: Types.ObjectId) {
     return InterviewSessionModel.findById(sessionId);
   }
 
   // Find user's upcoming sessions
-  async findUserSessions(userId: Types.ObjectId) {
+  async findUserSessions(userId: Types.ObjectId, page: number, limit: number) {
     return InterviewSessionModel.find({
       $or: [
         { interviewerId: userId },
         { intervieweeId: userId },
       ],
-      status: {
+            status: {
         $in: [
-          InterviewSessionStatus.CREATED,
           InterviewSessionStatus.SCHEDULED,
           InterviewSessionStatus.READY,
           InterviewSessionStatus.JOINED,
           InterviewSessionStatus.ACTIVE,
         ],
       },
-    }).sort({
-      scheduledAt: 1,
-      createdAt: 1,
-    });
+    })
+      .sort({ scheduledAt: 1 })
+      .skip((page - 1) * limit)
+      .limit(limit);
   }
 
   // Find session by id
@@ -77,9 +75,13 @@ class InterviewSessionRepository {
     return InterviewSessionModel.findById(sessionId).select("+startTime +endTime").populate("matchId");
   }
 
-  // update sechedule 
-  async updateScedule(sessionId: Types.ObjectId, startTime: Date, endTime: Date, status: InterviewSessionStatus) {
-    return InterviewSessionModel.findByIdAndUpdate(sessionId, { $set: { scheduledAt: startTime, startTime, endTime, status } })
+    // update schedule
+  async updateSchedule(sessionId: Types.ObjectId, startTime: Date, endTime: Date, status: InterviewSessionStatus) {
+    return InterviewSessionModel.findByIdAndUpdate(
+      sessionId,
+      { $set: { scheduledAt: startTime, startTime, endTime, status } },
+      { returnDocument: "after" }
+    );
   }
 
   // Remove code and language fields
@@ -105,8 +107,8 @@ class InterviewSessionRepository {
     });
   }
 
-  // session history find 
-  async findSessionHistory(userId: Types.ObjectId) {
+  // session history find
+  async findSessionHistory(userId: Types.ObjectId, page: number, limit: number) {
     return InterviewSessionModel.find({
       $or: [
         { interviewerId: userId },
@@ -118,12 +120,13 @@ class InterviewSessionRepository {
           InterviewSessionStatus.CANCELLED,
         ],
       },
-    }).sort({
-      createdAt: 1,
-    });
+        })
+      .sort({ endTime: -1, updatedAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit);
   }
 
-  // update session state 
+  // update session state
   async updateSessionStatus(
     sessionId: Types.ObjectId,
     data: Partial<{
@@ -146,7 +149,7 @@ class InterviewSessionRepository {
     );
   }
 
-  // update report 
+  // update report
   async addReport(
     sessionId: Types.ObjectId,
     report: {
@@ -224,7 +227,6 @@ class InterviewSessionRepository {
       language: string;
     }>
   ) {
-
     return InterviewSessionModel.findByIdAndUpdate(
       sessionId,
       {
@@ -232,16 +234,12 @@ class InterviewSessionRepository {
       },
       {
         returnDocument: "after",
-      },
+      }
     );
-
   }
 
   // remove code and language
-  async clearCode(
-    sessionId: Types.ObjectId,
-  ) {
-
+  async clearCode(sessionId: Types.ObjectId) {
     return InterviewSessionModel.findByIdAndUpdate(
       sessionId,
       {
@@ -252,11 +250,9 @@ class InterviewSessionRepository {
       },
       {
         returnDocument: "after",
-      },
+      }
     );
-
   }
-
 }
 
 export default new InterviewSessionRepository();

@@ -24,7 +24,7 @@ const toId = (value: unknown): string => {
     }
     if (typeof record.toString === "function") {
       const rendered = record.toString();
-      if (rendered && rendered !== "[boject Object]") {
+      if (rendered && rendered !== "[object Object]") {
         return rendered;
       }
     }
@@ -84,11 +84,9 @@ const buildParticipants = (session: any) => {
 
 const toSessionResponse = (session: any) => {
   if (!session) return null;
-  console.log(session)
 
-  const matchId = session.matchId && typeof session.matchId === "object" && "_id" in session.matchId
-    ? session.matchId._id
-    : session.matchId;
+  const matchId = session.matchId?._id?.toString() ?? session.matchId?.toString() ?? "";
+
 
   const ratings = session.ratings ?? [];
   const ratingCount = session.ratingCount ?? ratings.length;
@@ -100,7 +98,7 @@ const toSessionResponse = (session: any) => {
     requestIds: [toId(matchId)].filter(Boolean),
     participants: buildParticipants(session),
     status: session.status,
-    scheduledAt: toIso(session.scheduledAt ?? session.startTime),
+    scheduledAt: session.scheduledAt ? toIso(session.scheduledAt ?? session.startTime) : undefined,
     startedAt: toIso(session.startTime),
     endedAt: toIso(session.endTime),
     roomId: session.roomId,
@@ -127,12 +125,8 @@ const toSessionResponse = (session: any) => {
 const getOwnedSessionById = async (sessionId: string, userId: string) => {
   const session = await interviewSessionRepository.findByIdWithPopulatedMatchId(sessionId);
 
-  if (!session) {
+  if (!session || (session.interviewerId.toString() !== userId && session.intervieweeId.toString() !== userId)) {
     throw new AppError("Session not found", 404);
-  }
-
-  if (session.interviewerId.toString() !== userId && session.intervieweeId.toString() !== userId) {
-    throw new AppError("Unauthorized access to session", 403);
   }
 
   return session;
@@ -150,56 +144,89 @@ export const getSessionService = async (sessionId: string, userId: string) => {
   return toSessionResponse(session);
 };
 
-export const getUpcomingSessionsService = async (userId: string) => {
-  const sessions = await interviewSessionRepository.findUserSessions(new Types.ObjectId(userId));
-  console.log(userId)
+
+export const getHistorySessionsService = async (userId: string, page: number, limit: number) => {
+  const sessions = await interviewSessionRepository.findSessionHistory(new Types.ObjectId(userId), page, limit);
   return sessions.map(toSessionResponse);
 };
 
-export const getHistorySessionsService = async (userId: string) => {
-  const sessions = await interviewSessionRepository.findSessionHistory(new Types.ObjectId(userId));
-
+export const getUpcomingSessionsService = async (userId: string, page: number, limit: number) => {
+  const sessions = await interviewSessionRepository.findUserSessions(new Types.ObjectId(userId), page, limit);
   return sessions.map(toSessionResponse);
 };
 
 export const scheduleSessionService = async (userId: string, sessionId: string, startTime: Date, endTime: Date) => {
-  if(startTime > endTime){
-    throw new AppError("Invalid time (endtime is greater).", 404)
+  if (startTime >= endTime) {
+    throw new AppError("startTime must be before endTime.", 400);
+  }
+  const now = new Date();
+  if (startTime < now) {
+    throw new AppError("startTime must be in the future.", 400);
   }
   const session = await interviewSessionRepository.findById(new Types.ObjectId(sessionId));
 
   if (!session) {
-    throw new AppError("Session not found for this match.", 404);
+    throw new AppError("Session not found.", 404);
   }
 
   ensureInterviewerId(session, userId);
-  ensureJoinable(session);
 
-  await interviewSessionRepository.updateScedule(session._id, new Date(startTime), new Date(endTime), InterviewSessionStatus.SCHEDULED)
+  if (session.status !== InterviewSessionStatus.CREATED) {
+    throw new AppError("This session has already been scheduled or is in progress.", 400);
+  }
+
+  const updatedSession = await interviewSessionRepository.updateSchedule(
+    session._id,
+    new Date(startTime),
+    new Date(endTime),
+    InterviewSessionStatus.SCHEDULED
+  );
+
+  if (!updatedSession) {
+    throw new AppError("Failed to update session schedule.", 500);
+  }
 
   emitToUser(session.intervieweeId.toString(), "session-scheduled", { sessionId, startTime, endTime });
 
-  return toSessionResponse(session);
+  return toSessionResponse(updatedSession);
 };
 
 export const rescheduleSessionService = async (sessionId: string, userId: string, startTime: Date, endTime: Date) => {
-  if(startTime > endTime){
-    throw new AppError("Invalid time (endtime is greater).", 404)
+  if (startTime >= endTime) {
+    throw new AppError("startTime must be before endTime.", 400);
+  }
+  
+  const now = new Date();
+  if (startTime < now) {
+    throw new AppError("startTime must be in the future.", 400);
   }
   const session = await getOwnedSessionById(sessionId, userId);
-  ensureJoinable(session);
+
+  if (session.status !== InterviewSessionStatus.SCHEDULED) {
+    throw new AppError("This session is not scheduled and cannot be rescheduled.", 400);
+  }
+
   ensureInterviewerId(session, userId);
-    const confirmedPayment = await PaymentRepository.findPaidByUserAndSession(session.intervieweeId.toString(), sessionId);
+  const confirmedPayment = await PaymentRepository.findPaidByUserAndSession(session.intervieweeId.toString(), sessionId);
 
   if (confirmedPayment) {
     throw new AppError("Candidate has completed the payment so reschedule is not possible.", 402);
   }
-  
-  await interviewSessionRepository.updateScedule(session._id, new Date(startTime), new Date(endTime), InterviewSessionStatus.SCHEDULED)
+
+  const updatedSession = await interviewSessionRepository.updateSchedule(
+    session._id,
+    new Date(startTime),
+    new Date(endTime),
+    InterviewSessionStatus.SCHEDULED
+  );
+
+  if (!updatedSession) {
+    throw new AppError("Failed to update session schedule.", 500);
+  }
 
   emitToUser(session.intervieweeId.toString(), "session-rescheduled", { sessionId, startTime, endTime });
 
-  return toSessionResponse(session);
+  return toSessionResponse(updatedSession);
 };
 
 export const joinSessionService = async (sessionId: string, userId: string) => {
@@ -241,7 +268,7 @@ export const joinSessionService = async (sessionId: string, userId: string) => {
 
   const bothJoined = Boolean(interviewerJoined && intervieweeJoined);
 
-  updateData.status = bothJoined ? InterviewSessionStatus.JOINED : InterviewSessionStatus.READY;
+  updateData.status = bothJoined ? InterviewSessionStatus.ACTIVE : InterviewSessionStatus.JOINED;
 
   if (bothJoined && !session.readyAt) {
     updateData.readyAt = now;
@@ -260,7 +287,6 @@ export const leaveSessionService = async (sessionId: string, userId: string) => 
   const now = new Date();
 
   const isInterviewer = session.interviewerId.toString() === userId;
-
   const isInterviewee = session.intervieweeId.toString() === userId;
 
   if (!isInterviewer && !isInterviewee) {
@@ -269,16 +295,18 @@ export const leaveSessionService = async (sessionId: string, userId: string) => 
 
   const otherUserId = isInterviewer ? session.intervieweeId : session.interviewerId;
   const updateData: any = {};
-  if (isInterviewer && !session.interviewerLeftAt) {
-    updateData.interviewerLeftAt = now;
-    updateData.status = InterviewSessionStatus.READY
+  if (isInterviewer) {
+    if (!session.interviewerLeftAt) {
+      updateData.interviewerLeftAt = now;
+    }
+  } else if (isInterviewee) {
+    if (!session.intervieweeLeftAt) {
+      updateData.intervieweeLeftAt = now;
+    }
   }
 
-  if (isInterviewee && !session.intervieweeLeftAt) {
-    updateData.status = InterviewSessionStatus.READY
-    updateData.intervieweeLeftAt = now;
-  }
-
+  // Always revert status to READY if someone leaves an active session
+  updateData.status = InterviewSessionStatus.READY;
   const interviewerLeft = session.interviewerLeftAt || updateData.interviewerLeftAt;
   const intervieweeLeft = session.intervieweeLeftAt || updateData.intervieweeLeftAt;
 
@@ -302,12 +330,12 @@ export const cancelSessionService = async (sessionId: string, userId: string) =>
     throw new AppError("Session already closed.", 400);
   }
 
-  await interviewSessionRepository.cancelSession(new Types.ObjectId(sessionId));
+  const updatedSession = await interviewSessionRepository.cancelSession(new Types.ObjectId(sessionId));
 
   const otherUserId = session.interviewerId.toString() === userId ? session.intervieweeId : session.interviewerId;
   emitToUser(otherUserId.toString(), "session-cancelled", { sessionId });
 
-  return toSessionResponse(session);
+  return toSessionResponse(updatedSession);
 };
 
 export const reconnectSessionService = async (sessionId: string, userId: string) => {
@@ -341,11 +369,15 @@ export const reconnectSessionService = async (sessionId: string, userId: string)
 
   const interviewerPresent = !session.interviewerLeftAt || updateData.interviewerLeftAt === undefined;
   const intervieweePresent = !session.intervieweeLeftAt || updateData.intervieweeLeftAt === undefined;
+  const interviewerJoined = session.interviewerJoinedAt || updateData.interviewerJoinedAt;
+  const intervieweeJoined = session.intervieweeJoinedAt || updateData.intervieweeJoinedAt;
 
-  const bothPresent = interviewerPresent && intervieweePresent;
+  const bothPresent = interviewerPresent && intervieweePresent && Boolean(interviewerJoined && intervieweeJoined);
 
   if (bothPresent) {
     updateData.status = InterviewSessionStatus.ACTIVE;
+  } else {
+    updateData.status = InterviewSessionStatus.JOINED;
   }
 
   const updatedSession =
@@ -357,7 +389,6 @@ export const reconnectSessionService = async (sessionId: string, userId: string)
   const otherUserId = isInterviewer ? session.intervieweeId : session.interviewerId;
 
   emitToUser(otherUserId.toString(), "peer-reconnected", { sessionId, userId, status: updatedSession?.status, });
-
   return toSessionResponse(updatedSession);
 };
 
@@ -373,6 +404,10 @@ export const reportSessionService = async (sessionId: string, userId: string, re
     throw new AppError("You are not part of this session.", 403);
   }
 
+  if (session.reports?.some((r) => r.userId.toString() === userId)) {
+    throw new AppError("You have already reported this session.", 400);
+  }
+
   const updatedSession = await interviewSessionRepository.addReport(new Types.ObjectId(sessionId), {
     userId: new Types.ObjectId(userId),
     reason,
@@ -382,6 +417,7 @@ export const reportSessionService = async (sessionId: string, userId: string, re
 
   return toSessionResponse(updatedSession);
 };
+
 
 export const rateSessionService = async (sessionId: string, userId: string, rating: number) => {
   const session = await getOwnedSessionById(sessionId, userId);
@@ -408,7 +444,7 @@ export const rateSessionService = async (sessionId: string, userId: string, rati
   );
 
   if (existingIndex >= 0) {
-    const existing = ratings[existingIndex]!;
+    const existing = ratings[existingIndex]! || {};
     existing.value = rating;
     existing.createdAt = new Date();
   } else {
@@ -460,7 +496,7 @@ export const feedbackSessionService = async (sessionId: string, userId: string, 
   const now = new Date();
 
   if (existingIndex >= 0) {
-    const existing = feedbackEntries[existingIndex]!;
+    const existing = feedbackEntries[existingIndex]! || {};
 
     existing.feedback = feedback;
     existing.createdAt = now;
@@ -482,3 +518,4 @@ export const feedbackSessionService = async (sessionId: string, userId: string, 
 
   return toSessionResponse(updatedSession);
 };
+
